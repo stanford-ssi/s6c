@@ -1,0 +1,21 @@
+{
+    "name": "SRADio",
+    "keywords": "GFSK, radio, rf, packet",
+    "description": "Library for packet radio transmission with Stanford SSI's SRADio",
+    "repository":
+    {
+      "type": "git",
+      "url": "https://github.com/timvrakas/SRADio-GFSK.git"
+    },
+    "authors":
+    [
+      {
+        "name": "Tim Vrakas",
+        "email": "timv@stanford.edu",
+        "maintainer": true
+      }
+    ],
+    "version": "0.0.1",
+    "frameworks": "arduino",
+    "platforms": "*"
+}
