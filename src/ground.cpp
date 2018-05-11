@@ -1,5 +1,13 @@
 #include <Arduino.h>
 #include "s6b.h"
+#include "RadioInterface.h"
+
+typedef struct __attribute__((packed)) {
+  uint8_t rssi = 0;
+  uint32_t received = 0;
+  uint32_t dropped = 0;
+  uint8_t data[MAX_MSG_LENGTH];
+} doot_doot;
 
 int main() {
   delay(1000);
@@ -9,43 +17,27 @@ int main() {
   s6b.configureRF();
   Serial.println("Configured.");
   delay(1000);
-  char REF[] = "Hi this is a test hello very long blah blah valbal test yada heh eh dfksa kdsaf lkdsf jdfsalka me anem fent vinga va somhi una mica mes de text random Hi this is a test hello very long blah blah valbal test yada heh eh dfksa kdsaf lkdsf jdfsalka me anem fent vinga va somhi una mica mes de text random Hi this is a test hello very long blah blah valbal test yada heh eh dfksa kdsaf lkdsf jdfsalka me anem fent vinga va somhi una mica mes de text random";
-  char DATA[] = "Hi this is a test hello very long blah blah valbal test yada heh eh dfksa kdsaf lkdsf jdfsalka me anem fent vinga va somhi una mica mes de text random Hi this is a test hello very long blah blah valbal test yada heh eh dfksa kdsaf lkdsf jdfsalka me anem fent vinga va somhi una mica mes de text random Hi this is a test hello very long blah blah valbal test yada heh eh dfksa kdsaf lkdsf jdfsalka me anem fent vinga va somhi una mica mes de text random";
+
   uint32_t last = millis();
-  int dropped = 0;
-  int received = 0;
-  int dt = (MAX_MSG_LENGTH+10)*8/500.*1000;
+
+  doot_doot frame;
+  frame.dropped = 0;
+  frame.received = 0;
   while (true) {
-    uint8_t rx = s6b.tryToRX(DATA, MAX_MSG_LENGTH);
+    uint8_t rx = s6b.tryToRX(frame.data, MAX_MSG_LENGTH);
     if (rx == 1 || rx == 3) {
-      received++;
+      frame.received++;
+      frame.rssi = s6b.getRSSI();
       uint32_t diff = millis()-last;
       last = millis();
-      Serial.println("dt");
-      Serial.println(diff);
-      if (diff > (1900+dt)) dropped++;
-      int byterr = 0;
-      int biterr = 0;
-      for (int i=0; i<MAX_MSG_LENGTH; i++) {
-        if (REF[i] != DATA[i]) {
-          byterr++;
-        }
-        uint8_t diff = REF[i] ^ DATA[i];
-        for (int k=0; k<8; k++) {
-          if (diff & 1) biterr++;
-          diff >>= 1;
-        }
-      }
-      Serial.print("Byte error rate: ");
-      Serial.print(((float)byterr)/MAX_MSG_LENGTH*100);
-      Serial.println("%");
-      Serial.print("Bit error rate: ");
-      Serial.print(((float)biterr)/(8*MAX_MSG_LENGTH)*100);
-      Serial.println("%");
+      Serial.write(RADIO_START_SEQUENCE, 4);
+      Serial.write((char*)&frame, sizeof(doot_doot));
+      Serial.write(RADIO_END_SEQUENCE, 4);
+      if (diff > 1100 && frame.received != 1) frame.dropped++;
       Serial.print("Droppped: ");
-      Serial.println(dropped);
+      Serial.println(frame.dropped);
       Serial.print("Received: ");
-      Serial.println(received);
+      Serial.println(frame.received);
     }
   }
 }

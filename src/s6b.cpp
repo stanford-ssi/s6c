@@ -189,6 +189,8 @@ uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
         Serial.println("Sydrome: " + errorSyndrome);
         bitSet(returnCode,2);
       }
+    } else {
+      Serial.println("no errors");
     }
 
     memcpy(msg_data, copied, msg_size);
