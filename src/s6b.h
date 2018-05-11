@@ -1,9 +1,11 @@
 #include <Arduino.h>
 #include "RH_RF24.h"
 
-#define MAX_MSG_LENGTH 30
-#define NPAR 0
+#define MAX_MSG_LENGTH 23
+#define NPAR 7
 #define FRAME_SIZE ( MAX_MSG_LENGTH + NPAR )
+
+#include "ecc.h"
 
 #define GFSK_SDN 6
 #define GFSK_IRQ 2
@@ -18,7 +20,6 @@
 #define GFSK_MISO 12
 
 #define RF_FREQ 433.5
-#define RF_MODE RH_RF24::GFSK_Rb5Fd10
 
 #define PRINT_TIMING
 #define PRINT_ENCODED_DATA

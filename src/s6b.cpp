@@ -4,6 +4,7 @@
 //Constructs a new S6B object
 S6B::S6B()
 {
+  initialize_ecc();
   rf24 = new RH_RF24(GFSK_CS, GFSK_IRQ, GFSK_SDN);
 }
 
@@ -37,8 +38,6 @@ void S6B::configureRF()
     Serial.println(" MHz.");
   }
 
-  //rf24->setModemConfig(RF_MODE);
-
   Serial.println("RF Configured");
 
   rf24->setTxPower(0x7f);
@@ -63,8 +62,8 @@ void S6B::encode_and_transmit(void *msg_data, uint8_t msg_size)
 
   //calculate ECC data and package it into a frame
   uint8_t frame_data[FRAME_SIZE] = {0};                     //frame buffer
-  memcpy(frame_data, padded_msg_data, MAX_MSG_LENGTH);
-  //encode_data(padded_msg_data, MAX_MSG_LENGTH, frame_data); //This does the ECC
+  //memcpy(frame_data, padded_msg_data, MAX_MSG_LENGTH);
+  encode_data(padded_msg_data, MAX_MSG_LENGTH, frame_data); //This does the ECC
 
 //debug frame contents
 #ifdef PRINT_ENCODED_DATA
@@ -163,7 +162,7 @@ uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
       Serial.print((char)data[kk]);
     Serial.println();
 #endif
-/*
+
     unsigned char copied[FRAME_SIZE];
     memcpy(copied, data, FRAME_SIZE);
     decode_data(copied, data_size);
@@ -191,8 +190,8 @@ uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
         bitSet(returnCode,2);
       }
     }
-*/
-    //memcpy(msg_data, copied, msg_size);
+
+    memcpy(msg_data, copied, msg_size);
 
     return returnCode;
   }
