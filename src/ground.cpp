@@ -9,6 +9,36 @@ typedef struct __attribute__((packed)) {
   uint8_t data[MAX_MSG_LENGTH];
 } doot_doot;
 
+
+bool parsing = false;
+bool msg = false;
+
+char message[32];
+int idx = 0;
+
+void parse_byte() {
+  char b = Serial.read();
+  if (parsing) {
+    if (b == '>') {
+      Serial.println("SYNTAX ERROR WHY WOULD YOU TRY TO CONFUSE MY DETERMINISTIC AUTOMATON BRAIN YOU SILLY HOO-MAN");
+    }
+    else if (b == '<') {
+      msg = true;
+      parsing = false;
+    } else {
+      message[idx] = b;
+      idx++;
+    }
+  } else {
+    if (b == '>') {
+      msg = false;
+      parsing = true;
+      idx = 0;
+      memset(message, 0, 32);
+    }
+  }
+}
+
 int main() {
   delay(1000);
   Serial.begin(115200);
@@ -23,9 +53,11 @@ int main() {
   doot_doot frame;
   frame.dropped = 0;
   frame.received = 0;
+  uint32_t gotit = 0;
   while (true) {
     uint8_t rx = s6b.tryToRX(frame.data, MAX_MSG_LENGTH);
     if (rx == 1 || rx == 3) {
+      gotit = millis();
       frame.received++;
       frame.rssi = s6b.getRSSI();
       uint32_t diff = millis()-last;
@@ -39,5 +71,19 @@ int main() {
       Serial.print("Received: ");
       Serial.println(frame.received);
     }
+    while (Serial.available()) {
+      parse_byte();
+      if (msg) {
+        break;
+      }
+    }
+    if (msg && millis() > (gotit + 5)) {
+      Serial.println("sending message or something");
+      s6b.encode_and_transmit(message, MAX_MSG_LENGTH);
+      Serial.println("k done");
+      msg = false;
+    }
+
+
   }
 }
