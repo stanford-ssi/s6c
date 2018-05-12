@@ -57,7 +57,14 @@ int main() {
   while (true) {
     uint8_t rx = s6b.tryToRX(frame.data, MAX_MSG_LENGTH);
     if (rx == 1 || rx == 3) {
-      gotit = millis();
+      if (msg) {
+        delay(25);
+        Serial.println("sending message or something");
+        Serial.println(millis()-gotit);
+        s6b.encode_and_transmit(message, MAX_MSG_LENGTH);
+        Serial.println("k done");
+        msg = false;
+      }
       frame.received++;
       frame.rssi = s6b.getRSSI();
       uint32_t diff = millis()-last;
@@ -76,12 +83,6 @@ int main() {
       if (msg) {
         break;
       }
-    }
-    if (msg && millis() > (gotit + 5)) {
-      Serial.println("sending message or something");
-      s6b.encode_and_transmit(message, MAX_MSG_LENGTH);
-      Serial.println("k done");
-      msg = false;
     }
 
 

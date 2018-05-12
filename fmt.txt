@@ -1,0 +1,18 @@
+radio.addVariable(data.ALTITUDE_BAROMETER, -100, 25000, 16);
+radio.addVariable(data.ASCENT_RATE, -6, 6, 10);
+radio.addVariable(data.LAT_GPS,  -90, 90,  20);
+radio.addVariable(data.LONG_GPS, -180,  180, 21);
+radio.addVariable(data.VALVE_TIME_TOTAL / 1000, 0,  16383, 13);
+radio.addVariable(data.BALLAST_TIME_TOTAL / 1000, 0,  16383, 13);
+radio.addVariable(data.VOLTAGE_PRIMARY, 0,  6,  9);
+radio.addVariable(data.VOLTAGE_SUPERCAP,  0,  6,  9);
+radio.addVariable(data.TEMP_INT, -60, 60, 8);
+radio.addVariable(data.CURRENT_CONTROLLER_INDEX,  0,  3, 2);
+radio.addVariable(data.CURRENT_TOTAL, 0, 1500, 8);
+radio.addVariable(data.CURRENT_RB,  0,  2500, 8);
+radio.addVariable(data.CURRENT_MOTORS, 0,  500, 7);
+radio.addVariable(data.MANUAL_MODE, 0,  1,  1);
+radio.addVariable(data.OVERPRESSURE, -500,  1000,  9);
+radio.addVariable(data.OVERPRESSURE_VREF, 0,  6,  9);
+radio.addVariable(data.LAS_STATE.v, -6, 6, 10);
+radio.addVariable(data.LAS_STATE.fused_v, -6, 6, 10);

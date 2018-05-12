@@ -62,7 +62,7 @@ def msg(ws, message):
         count += 1
     if 'receive' in message:
         recv += 1
-    print("[WS] Got message", message)
+    #print("[WS] Got message", message)
     global last_message
     last_message = time.time()
 
@@ -100,20 +100,20 @@ message = []
 import struct
 
 def parse_message(msg):
-    print("Parsing", msg, len(msg))
+    #print("Parsing", msg, len(msg))
     try:
-        msg = ''.join(map(chr, msg))
-        rssi = ord(msg[0])
-        recc = struct.unpack('I', str.encode(msg[1:5]))[0]
-        drop = struct.unpack('I', str.encode(msg[5:9]))[0]
-        print("RSSI", rssi)
+        #msg = list(map(chr, msg))
+        rssi = int(msg[0])
+        recc = struct.unpack('I', bytearray(msg[1:5]))[0]
+        drop = struct.unpack('I', bytearray(msg[5:9]))[0]
+        #print("RSSI", rssi)
         print("Received", recc)
-        print("Dropped", drop)
+        #print("Dropped", drop)
         #ln = ord(sp[1])
         aa = msg[9:]
         inp = ""
         for c in aa:
-           num = ord(c)
+           num = c
            for i in [1,2,4,8,16,32,64,128][::-1]:
               inp += ("1" if (num & i) else "0")
         dd = {"id":str(uuid.uuid4()), "mission": 48, "timestamp": int(time.time()*1000), "msgs_received": recc, "msgs_lost": drop, "rssi": rssi}#, "received": msg[:ln].encode('hex')}
@@ -123,8 +123,8 @@ def parse_message(msg):
             x = int(x, 2)
             v = min + (max-min) * x / (2**bits - 1.)
             dd[name] = v
-            print(name, v)
-        print(list(dd.keys()))
+            #print(name, v)
+        #print(list(dd.keys()))
         #print "actual thing received", msg[:ln]
         #print "raw bytestring", msg[ln:]
 
@@ -149,6 +149,7 @@ t = threading.Thread(target=check_comm)
 t.daemon = True
 t.start()
 
+import sys
 while True:
     b = ord(s.read(1))
     rolling.append(b)
@@ -162,3 +163,5 @@ while True:
         parse_message(message[:-3])
     elif parsing:
         message.append(b)
+    else:
+        sys.stdout.write(chr(b))
