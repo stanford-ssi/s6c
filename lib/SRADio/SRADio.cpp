@@ -20,26 +20,26 @@ void SRADio::configureRF()
   uint8_t buf[8];
   if (!rf24->command(RH_RF24_CMD_PART_INFO, 0, 0, buf, sizeof(buf)))
   {
-    Serial.println("SPI ERROR");
+    SerialUSB.println("SPI ERROR");
   }
   else
   {
-    Serial.println("SPI OK");
+    SerialUSB.println("SPI OK");
   }
   if (!rf24->setFrequency(RF_FREQ))
   {
-    Serial.println("Set Frequency failed");
+    SerialUSB.println("Set Frequency failed");
   }
   else
   {
-    Serial.print("Frequency set to ");
-    Serial.print(RF_FREQ);
-    Serial.println(" MHz.");
+    SerialUSB.print("Frequency set to ");
+    SerialUSB.print(RF_FREQ);
+    SerialUSB.println(" MHz.");
   }
 
   rf24->setModemConfig(RF_MODE);
 
-  Serial.println("RF Configured");
+  SerialUSB.println("RF Configured");
 
   rf24->setTxPower(0x7f);
 }
@@ -54,7 +54,7 @@ void SRADio::encode_and_transmit(void *msg_data, uint8_t msg_size)
   //message must be withing the frame size constraints
   if (msg_size > MAX_MSG_LENGTH)
   {
-    Serial.println("Message too large!");
+    SerialUSB.println("Message too large!");
   }
 
   //add padding zeroes to normalize message length
@@ -67,18 +67,18 @@ void SRADio::encode_and_transmit(void *msg_data, uint8_t msg_size)
 
 //debug frame contents
 #ifdef PRINT_ENCODED_DATA
-  Serial.println("encoded data");
+  SerialUSB.println("encoded data");
   for (int i = 0; i < FRAME_SIZE; i++)
   {
     uint8_t k = frame_data[i];
-    Serial.print(k);
+    SerialUSB.print(k);
     if (k < 10)
-      Serial.print(" ");
+      SerialUSB.print(" ");
     if (k < 100)
-      Serial.print(" ");
-    Serial.print(" ");
+      SerialUSB.print(" ");
+    SerialUSB.print(" ");
   }
-  Serial.println();
+  SerialUSB.println();
 #endif
 
   //transmit frame (blocking)
@@ -88,11 +88,11 @@ void SRADio::encode_and_transmit(void *msg_data, uint8_t msg_size)
 
 //debug transmission time
 #ifdef PRINT_TIMING
-  Serial.print("Sent ");
-  Serial.print(FRAME_SIZE);
-  Serial.print(" bytes in ");
-  Serial.print((micros() - timer) / 1000.);
-  Serial.println(" ms");
+  SerialUSB.print("Sent ");
+  SerialUSB.print(FRAME_SIZE);
+  SerialUSB.print(" bytes in ");
+  SerialUSB.print((micros() - timer) / 1000.);
+  SerialUSB.println(" ms");
 #endif
 }
 
@@ -101,15 +101,15 @@ void SRADio::encode_and_transmit(void *msg_data, uint8_t msg_size)
 //The SPI configuration might not be needed, as RadioHead seems to already do it.
 void SRADio::configurePins()
 {
-  pinMode(GFSK_GATE, OUTPUT);
+  //pinMode(GFSK_GATE, OUTPUT);
   pinMode(GFSK_SDN, OUTPUT);
 
   //THIS MIGHT BE NOT NEEDED!
-  SPI.setSCK(GFSK_SCK);
+  /*SPI.setSCK(GFSK_SCK);
   SPI.setMOSI(GFSK_MOSI);
-  SPI.setMISO(GFSK_MISO);
-  SPI.setDataMode(SPI_MODE0);
-  SPI.setClockDivider(SPI_CLOCK_DIV2); // Setting clock speed to 8mhz, as 10 is the max for the rfm22
+  SPI.setMISO(GFSK_MISO);*/
+  //SPI.setDataMode(SPI_MODE0);
+  //SPI.setClockDivider(SPI_CLOCK_DIV2); // Setting clock speed to 8mhz, as 10 is the max for the rfm22
   SPI.begin();
   //
 }
@@ -142,25 +142,25 @@ uint8_t SRADio::tryToRX(void *msg_data, uint8_t msg_size)
     lastRssi = (uint8_t)rf24->lastRssi();
 
 #ifdef PRINT_RSSI
-    Serial.print("Got stuff at RSSI: ");
-    Serial.println(lastRssi);
+    SerialUSB.print("Got stuff at RSSI: ");
+    SerialUSB.println(lastRssi);
 #endif
 
 #ifdef PRINT_DEBUG
     if (data_size != FRAME_SIZE)
     {
-      Serial.print("Error, got frame of size ");
-      Serial.print(data_size);
-      Serial.print(", expecting ");
-      Serial.println(FRAME_SIZE);
+      SerialUSB.print("Error, got frame of size ");
+      SerialUSB.print(data_size);
+      SerialUSB.print(", expecting ");
+      SerialUSB.println(FRAME_SIZE);
       bitSet(returnCode,3);
     }
 #endif
 
 #ifdef PRINT_ENCODED_DATA
     for (int kk = 0; kk < data_size; kk++)
-      Serial.print((char)data[kk]);
-    Serial.println();
+      SerialUSB.print((char)data[kk]);
+    SerialUSB.println();
 #endif
 
     unsigned char copied[FRAME_SIZE];
@@ -170,9 +170,9 @@ uint8_t SRADio::tryToRX(void *msg_data, uint8_t msg_size)
     if (check_syndrome() != 0)
     {
       bitSet(returnCode,1);
-      Serial.println("There were errors");
+      SerialUSB.println("There were errors");
       int correct = correct_errors_erasures(copied, FRAME_SIZE, 0, NULL);
-      
+
       errorSyndrome = String();
       for (int i = 0; i < NPAR; i++)
         errorSyndrome += synBytes[i];
@@ -180,13 +180,13 @@ uint8_t SRADio::tryToRX(void *msg_data, uint8_t msg_size)
 
       if (correct)
       {
-        Serial.println("Corrected successfully.");
-        Serial.println("Sydrome: " + errorSyndrome);
+        SerialUSB.println("Corrected successfully.");
+        SerialUSB.println("Sydrome: " + errorSyndrome);
       }
       else
       {
-        Serial.println("Uncorrectable Errors!");
-        Serial.println("Sydrome: " + errorSyndrome);
+        SerialUSB.println("Uncorrectable Errors!");
+        SerialUSB.println("Sydrome: " + errorSyndrome);
         bitSet(returnCode,2);
       }
     }

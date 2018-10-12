@@ -177,18 +177,18 @@ void RHGenericDriver::printBuffer(const char* prompt, const uint8_t* buf, uint8_
     uint8_t i;
 
 #ifdef RH_HAVE_SERIAL
-    Serial.println(prompt);
+    SerialUSB.println(prompt);
     for (i = 0; i < len; i++)
     {
 	if (i % 16 == 15)
-	    Serial.println(buf[i], HEX);
+	    SerialUSB.println(buf[i], HEX);
 	else
 	{
-	    Serial.print(buf[i], HEX);
-	    Serial.print(' ');
+	    SerialUSB.print(buf[i], HEX);
+	    SerialUSB.print(' ');
 	}
     }
-    Serial.println("");
+    SerialUSB.println("");
 #endif
 }
 

@@ -94,11 +94,11 @@ bool RHEncryptedDriver::send(const uint8_t* data, uint8_t len)
 	}
 	_blockcipher.encryptBlock(&_buffer[k * blockSize], _cipheringBlocks.inputBlock); // Cipher that message into _buffer
     }
-//    Serial.println(max_message_length);
-//    Serial.println(nbBlocks);
-//    Serial.println(nbBpM);
-//    Serial.println(k);
-//    Serial.println(blockSize);
+//    SerialUSB.println(max_message_length);
+//    SerialUSB.println(nbBlocks);
+//    SerialUSB.println(nbBpM);
+//    SerialUSB.println(k);
+//    SerialUSB.println(blockSize);
 //    printBuffer("single send", _buffer, k * blockSize);
     if (!_driver.send(_buffer, k*blockSize))  // We now send that message with it's new length
 	status = false;

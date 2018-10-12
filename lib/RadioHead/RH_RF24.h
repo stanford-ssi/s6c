@@ -864,7 +864,7 @@ public:
     /// - Sets the modem data rate to GFSK_Rb5Fd10
     /// - Sets the tranmitter power level to 16 (about 2.4dBm on RFM4)
     /// \return  true if everything was successful
-    bool        init(int msg_len);
+    bool        init();
 
     /// Sets the chip mode that will be used when the RH_RF24 driver is idle (ie not transmitting or receiving)
     /// You can use this to control the power level consumed while idle, at the cost of slower
@@ -1057,6 +1057,11 @@ public:
     /// connected.
     /// \return The integer device type
     uint16_t deviceType() {return _deviceType;};
+
+
+	bool set4GFSK(bool yeah);
+	bool setMessageLength(int length);
+	bool setDatarate(int mode);
 
 protected:
     /// This is a low level function to handle the interrupts for one instance of RF24.

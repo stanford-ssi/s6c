@@ -3,14 +3,16 @@
 
 #include <Arduino.h>
 
-typedef struct __attribute__((__packed__)) vb_rf_message {
-  uint8_t data[200] = {0};
-} vb_rf_message;
-
-/* Generated with a fair dice. */
-const uint8_t RADIO_START_SEQUENCE[] = {204, 105, 119, 82};
-const uint8_t RADIO_END_SEQUENCE[] = {162, 98, 128, 161};
-
-const int VBRF_BAUD_RATE = 115200;
+#define MESSAGE_SEND 0
+#define MESSAGE_SET_MODE 1
+#define MESSAGE_SET_FREQUENCY 2
+#define MESSAGE_SET_DATARATE 3
+#define MESSAGE_SET_INTERVAL 4
+#define MESSAGE_SET_LENGTH 5
+#define MESSAGE_SET_CONTINUOUS 6
+#define MESSAGE_QUICKSAVE 0xF5
+#define MESSAGE_QUICKLOAD 0xF9
+#define MESSAGE_QUICKACK 0xFA
+#define MESSAGE_SEND_CONFIG 7
 
 #endif

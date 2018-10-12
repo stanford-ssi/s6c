@@ -84,6 +84,14 @@ int main() {
         break;
       }
     }
+    if (msg) {
+      delay(25);
+      Serial.println("sending message or something");
+      Serial.println(millis()-gotit);
+      s6b.encode_and_transmit(message, MAX_MSG_LENGTH);
+      Serial.println("k done");
+      msg = false;
+    }
 
 
   }

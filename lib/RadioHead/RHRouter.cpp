@@ -109,13 +109,13 @@ void RHRouter::printRoutingTable()
     uint8_t i;
     for (i = 0; i < RH_ROUTING_TABLE_SIZE; i++)
     {
-	Serial.print(i, DEC);
-	Serial.print(" Dest: ");
-	Serial.print(_routes[i].dest, DEC);
-	Serial.print(" Next Hop: ");
-	Serial.print(_routes[i].next_hop, DEC);
-	Serial.print(" State: ");
-	Serial.println(_routes[i].state, DEC);
+	SerialUSB.print(i, DEC);
+	SerialUSB.print(" Dest: ");
+	SerialUSB.print(_routes[i].dest, DEC);
+	SerialUSB.print(" Next Hop: ");
+	SerialUSB.print(_routes[i].next_hop, DEC);
+	SerialUSB.print(" State: ");
+	SerialUSB.println(_routes[i].state, DEC);
     }
 #endif
 }

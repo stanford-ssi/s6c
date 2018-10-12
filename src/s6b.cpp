@@ -13,32 +13,32 @@ S6B::S6B()
 void S6B::configureRF()
 {
   configurePins();
-  //initialize_ecc();
+  initialize_ecc();
   RadioOff();
   delay(500);
   RadioOn();
-  rf24->init(FRAME_SIZE);
+  rf24->init();
   uint8_t buf[8];
   if (!rf24->command(RH_RF24_CMD_PART_INFO, 0, 0, buf, sizeof(buf)))
   {
-    Serial.println("SPI ERROR");
+    SerialUSB.println("SPI ERROR");
   }
   else
   {
-    Serial.println("SPI OK");
+    SerialUSB.println("SPI OK");
   }
   if (!rf24->setFrequency(RF_FREQ))
   {
-    Serial.println("Set Frequency failed");
+    SerialUSB.println("Set Frequency failed");
   }
   else
   {
-    Serial.print("Frequency set to ");
-    Serial.print(RF_FREQ);
-    Serial.println(" MHz.");
+    SerialUSB.print("Frequency set to ");
+    SerialUSB.print(RF_FREQ);
+    SerialUSB.println(" MHz.");
   }
 
-  Serial.println("RF Configured");
+  SerialUSB.println("RF Configured");
 
   rf24->setTxPower(0x7f);
 }
@@ -51,48 +51,48 @@ void S6B::configureRF()
 void S6B::encode_and_transmit(void *msg_data, uint8_t msg_size)
 {
   //message must be withing the frame size constraints
-  if (msg_size > MAX_MSG_LENGTH)
+  if (msg_size > 255 - NPAR)
   {
-    Serial.println("Message too large!");
+    SerialUSB.println("Message too large!");
   }
 
   //add padding zeroes to normalize message length
-  uint8_t padded_msg_data[MAX_MSG_LENGTH] = {0};
+  uint8_t padded_msg_data[256] = {0};
   memcpy(padded_msg_data, msg_data, msg_size);
 
   //calculate ECC data and package it into a frame
-  uint8_t frame_data[FRAME_SIZE] = {0};                     //frame buffer
+  uint8_t frame_data[256] = {0};
   //memcpy(frame_data, padded_msg_data, MAX_MSG_LENGTH);
-  encode_data(padded_msg_data, MAX_MSG_LENGTH, frame_data); //This does the ECC
+  encode_data(padded_msg_data, msg_size, frame_data); //This does the ECC
 
 //debug frame contents
 #ifdef PRINT_ENCODED_DATA
-  Serial.println("encoded data");
-  for (int i = 0; i < FRAME_SIZE; i++)
+  SerialUSB.println("encoded data");
+  for (int i = 0; i < (msg_size + NPAR); i++)
   {
     uint8_t k = frame_data[i];
-    Serial.print(k);
+    SerialUSB.print(k);
     if (k < 10)
-      Serial.print(" ");
+      SerialUSB.print(" ");
     if (k < 100)
-      Serial.print(" ");
-    Serial.print(" ");
+      SerialUSB.print(" ");
+    SerialUSB.print(" ");
   }
-  Serial.println();
+  SerialUSB.println();
 #endif
 
   //transmit frame (blocking)
   uint32_t timer = micros();
-  rf24->send(frame_data, FRAME_SIZE); //WHAT IS MESSAGE_LENGTH?
+  rf24->send(frame_data, msg_size + NPAR);
   rf24->waitPacketSent();
 
 //debug transmission time
 #ifdef PRINT_TIMING
-  Serial.print("Sent ");
-  Serial.print(FRAME_SIZE);
-  Serial.print(" bytes in ");
-  Serial.print((micros() - timer) / 1000.);
-  Serial.println(" ms");
+  SerialUSB.print("Sent ");
+  SerialUSB.print(msg_size + NPAR);
+  SerialUSB.print(" bytes in ");
+  SerialUSB.print((micros() - timer) / 1000.);
+  SerialUSB.println(" ms");
 #endif
 }
 
@@ -105,11 +105,13 @@ void S6B::configurePins()
   pinMode(GFSK_SDN, OUTPUT);
 
   //THIS MIGHT BE NOT NEEDED!
+  /*
   SPI.setSCK(GFSK_SCK);
   SPI.setMOSI(GFSK_MOSI);
   SPI.setMISO(GFSK_MISO);
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(SPI_CLOCK_DIV2); // Setting clock speed to 8mhz, as 10 is the max for the rfm22
+  */
   SPI.begin();
   //
 }
@@ -132,8 +134,8 @@ void S6B::RadioOn()
 //attempts to process any recived messages
 uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
 {
-  uint8_t data[FRAME_SIZE + 32] = {0}; //32 bytes buffer room
-  uint8_t data_size = FRAME_SIZE;
+  uint8_t data[300] = {0}; //32 bytes buffer room
+  uint8_t data_size = msg_size + NPAR;
   uint8_t returnCode = 0; //bits: recived, ECC used, ECC failed, Frame err
 
   if (rf24->recv(data, &data_size))
@@ -142,36 +144,36 @@ uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
     lastRssi = (uint8_t)rf24->lastRssi();
 
 #ifdef PRINT_RSSI
-    Serial.print("Got stuff at RSSI: ");
-    Serial.println(lastRssi);
+    SerialUSB.print("Got stuff at RSSI: ");
+    SerialUSB.println(lastRssi);
 #endif
 
 #ifdef PRINT_DEBUG
     if (data_size != FRAME_SIZE)
     {
-      Serial.print("Error, got frame of size ");
-      Serial.print(data_size);
-      Serial.print(", expecting ");
-      Serial.println(FRAME_SIZE);
+      SerialUSB.print("Error, got frame of size ");
+      SerialUSB.print(data_size);
+      SerialUSB.print(", expecting ");
+      SerialUSB.println(FRAME_SIZE);
       bitSet(returnCode,3);
     }
 #endif
 
 #ifdef PRINT_ENCODED_DATA
     for (int kk = 0; kk < data_size; kk++)
-      Serial.print((char)data[kk]);
-    Serial.println();
+      SerialUSB.print((char)data[kk]);
+    SerialUSB.println();
 #endif
 
-    unsigned char copied[FRAME_SIZE];
-    memcpy(copied, data, FRAME_SIZE);
+    unsigned char copied[300];
+    memcpy(copied, data, 300);
     decode_data(copied, data_size);
 
     if (check_syndrome() != 0)
     {
       bitSet(returnCode,1);
-      Serial.println("There were errors");
-      int correct = correct_errors_erasures(copied, FRAME_SIZE, 0, NULL);
+      SerialUSB.println("There were errors");
+      int correct = correct_errors_erasures(copied, msg_size + NPAR, 0, NULL);
 
       errorSyndrome = String();
       for (int i = 0; i < NPAR; i++)
@@ -180,17 +182,17 @@ uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
 
       if (correct)
       {
-        Serial.println("Corrected successfully.");
-        Serial.println("Sydrome: " + errorSyndrome);
+        SerialUSB.println("Corrected successfully.");
+        SerialUSB.println("Sydrome: " + errorSyndrome);
       }
       else
       {
-        Serial.println("Uncorrectable Errors!");
-        Serial.println("Sydrome: " + errorSyndrome);
+        SerialUSB.println("Uncorrectable Errors!");
+        SerialUSB.println("Sydrome: " + errorSyndrome);
         bitSet(returnCode,2);
       }
     } else {
-      Serial.println("no errors");
+      SerialUSB.println("no errors");
     }
 
     memcpy(msg_data, copied, msg_size);

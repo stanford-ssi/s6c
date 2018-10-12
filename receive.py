@@ -11,6 +11,8 @@ import string
 
 last_message = time.time()
 
+network = False
+
 def heartbeat():
     while True:
         if time.time() - last_message  > 16:
@@ -18,16 +20,17 @@ def heartbeat():
             os._exit(1)
         time.sleep(1)
 
-t = threading.Thread(target=heartbeat)
-t.daemon = True
-t.start()
+if network:
+    t = threading.Thread(target=heartbeat)
+    t.daemon = True
+    t.start()
 
 def clean(s):
     return ''.join([x for x in s.lower() if x in (string.ascii_lowercase + "_")])
 
 fmt = open('fmt.txt').read()
 
-a = re.findall(r'radio\.addVariable\(data\.(.*?)\s*,\s*(\-*\d+)\s*,\s*(\-*\d+)\s*,\s*(\-*\d+)\s*\);(.*?)$', fmt, re.MULTILINE)
+a = re.findall(r'radio\.addVariable\(data\.(.*?)\s*,\s*(\-*\d+.?\d*)\s*,\s*(\-*\d+.?\d*)\s*,\s*(\-*\d+)\s*\);(.*?)$', fmt, re.MULTILINE)
 
 vars = []
 for var in a:
@@ -35,11 +38,11 @@ for var in a:
     if var[4] != '':
        n = var[4].replace('//','').rstrip().lstrip()
     n = n.replace(' ','_')
-    vars.append([n, int(var[1]), int(var[2]), int(var[3])])
+    vars.append([n, float(var[1]), float(var[2]), int(var[3])])
     print(vars[-1])
 
 lock = threading.Lock()
-lock.acquire()
+if network: lock.acquire()
 
 count = 0
 recv = 0
@@ -79,11 +82,15 @@ def run_connection():
         ws.run_forever()
 
 
-t = threading.Thread(target=run_connection)
-t.daemon = True
-t.start()
 
-lock.acquire()
+if network:
+    t = threading.Thread(target=run_connection)
+    t.daemon = True
+    t.start()
+
+    # thanks jerry
+    lock.acquire()
+
 print("Okay, we're in business")
 
 import serial
@@ -99,14 +106,16 @@ message = []
 
 import struct
 
+thelog = open("thelog.txt", "a+")
+
 def parse_message(msg):
-    #print("Parsing", msg, len(msg))
+    print("Parsing", msg, len(msg))
     try:
         #msg = list(map(chr, msg))
         rssi = int(msg[0])
         recc = struct.unpack('I', bytearray(msg[1:5]))[0]
         drop = struct.unpack('I', bytearray(msg[5:9]))[0]
-        #print("RSSI", rssi)
+        print("RSSI", rssi)
         print("Received", recc)
         #print("Dropped", drop)
         #ln = ord(sp[1])
@@ -123,12 +132,16 @@ def parse_message(msg):
             x = int(x, 2)
             v = min + (max-min) * x / (2**bits - 1.)
             dd[name] = v
-            #print(name, v)
+            print(name, v)
+
         #print(list(dd.keys()))
         #print "actual thing received", msg[:ln]
         #print "raw bytestring", msg[ln:]
 
-        ws.send(json.dumps(dd))
+        if network: ws.send(json.dumps(dd))
+
+        dd["timetime"] = time.time()
+        thelog.write(json.dumps(dd)+"\n")
 
     except ImportError:
         print("Error parsing")
