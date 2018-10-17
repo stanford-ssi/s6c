@@ -5,7 +5,7 @@
 
 #include <RH_RF24.h>
 
-#include "/home/joan/virtual/shared/ss6c_500bps.h"
+#include "ss6c_500bps.h"
 
 // Interrupt vectors for the 3 Arduino interrupt pins
 // Each interrupt can be handled by a different instance of RH_RF24, allowing you to have
