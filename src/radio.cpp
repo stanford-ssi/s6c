@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "s6b.h"
 #include "RadioInterface.h"
-#include "SerialHeader.h"
+#include <wiring_private.h>
 
 #include "timer_utils.h"
 
@@ -30,6 +30,16 @@
  *      - 6: 500 kbps = 62.5 kB/s
  *      - 7: 1000 kbps = 125 kB/s
  */
+
+#define HEADER_TX 10
+#define HEADER_RX 11
+
+Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+
+void SERCOM1_Handler()
+{
+  SerialHeader.IrqHandler();
+}
 
 struct radio_config {
 		int mode = 0b11;
@@ -210,10 +220,10 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 
 void min_tx_start(uint8_t port) {}
 void min_tx_finished(uint8_t port) {
-    switch(port) {
+   /* switch(port) {
     case 0: SerialUSB.flush(); 
     case 1: SerialHeader.flush();
-    }
+    }*/
 }
 
 char serial_buffer_usb[32];
@@ -251,16 +261,15 @@ void setup() {
 	SerialUSB.println("Starting...");
 	SerialUSB.println("hullo s6c");
 
+	SerialHeader.begin(9600);
 	pinPeripheral(HEADER_RX, PIO_SERCOM);
 	pinPeripheral(HEADER_TX, PIO_SERCOM);
-	SerialHeader.begin(9600);
-	
 	
 	s6b.configureRF();
 	SerialUSB.println("Configured!!!!!");
 
-	//min_init_context(&min_ctx_usb, 0);
-	//min_init_context(&min_ctx_header, 1);
+	min_init_context(&min_ctx_usb, 0);
+	min_init_context(&min_ctx_header, 1);
 
 	setup_timer();
 	delay(1000);
