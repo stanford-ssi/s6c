@@ -1,6 +1,0 @@
-#include "SerialHeader.h"
-
-void SERCOM0_Handler()
-{
-  SerialHeader.IrqHandler();
-}
