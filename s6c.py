@@ -22,7 +22,8 @@ def listen():
         frames = handler.poll()
         if frames:
             for f in frames:
-                print(f.payload)
+                out = struct.unpack("iii", f.payload[1:13])
+                print(out)
 
 t = threading.Thread(target=listen)
 t.daemon = True
