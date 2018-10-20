@@ -53,13 +53,13 @@ def run_connection():
 
 
 def listen():
-    outfile = open("data.bin", "ab")
+    outfile = open("data.txt", "a")
 
     while True:
         frames = handler.poll()
         if frames:
             for f in frames:
-                outfile.write(f.payload)
+                outfile.write(''.join(f.payload) + '\n')
                 out = struct.unpack("iii", f.payload[1:13])
                 print(out)
                 data = {"id":str(uuid.uuid4()), "mission": 53, "timestamp": int(time.time()*1000), "latitude": out[0]/1000000, "longitude": out[1]/1000000, "altitude": out[2]}
