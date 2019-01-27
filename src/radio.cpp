@@ -272,6 +272,7 @@ void loop() {
 	if (CONFIG.mode & MODE_RECEIVING) {
 		uint8_t rx = s6c.tryToRX(receive_buffer, CONFIG.message_length);
 		if (rx == 3 || rx == 1) {
+			s6c.LEDOn();
 			if (schedule_config) {
 				schedule_config = false;
 				force_transmit = true;
@@ -295,7 +296,7 @@ void loop() {
 			k++;
 			SerialUSB.println(k);
 			SerialUSB.println("lesgo");*/
-			s6c.LEDOn();
+
 			min_send_frame(&min_ctx_usb, 3, (uint8_t*)(receive_buffer), CONFIG.message_length);
 
 			SerialUSB.println("Got message!");
