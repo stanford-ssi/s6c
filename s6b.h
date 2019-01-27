@@ -7,6 +7,8 @@
 
 #include "ecc.h"
 
+// see https://github.com/arduino/ArduinoCore-samd/blob/master/variants/arduino_zero/variant.cpp
+
 #define GFSK_SDN 13
 #define GFSK_IRQ 12
 #define GFSK_GATE 5
@@ -20,6 +22,8 @@
 #define GFSK_MISO 18
 
 #define RF_FREQ 433.5
+
+#define LED_PIN 27
 
 #define PRINT_TIMING
 #define PRINT_ENCODED_DATA
@@ -39,6 +43,8 @@ public:
   uint8_t getRSSI();
   String getSyndrome();
   RH_RF24 *rf24;    //the RadioHead Driver Object
+  void LEDOn();
+  void LEDOff();
 
 private:
   void RadioOff();

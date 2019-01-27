@@ -1,8 +1,8 @@
-#include "s6b.h"
+#include "s6c.h"
 
-//S6B:
-//Constructs a new S6B object
-S6B::S6B()
+//S6C:
+//Constructs a new S6C object
+S6C::S6C()
 {
   initialize_ecc();
   rf24 = new RH_RF24(GFSK_CS, GFSK_IRQ, GFSK_SDN);
@@ -10,7 +10,7 @@ S6B::S6B()
 
 //configureRF:
 //Configures the Radio Hardware, sets registers, and prepares for transmission
-void S6B::configureRF()
+void S6C::configureRF()
 {
   configurePins();
   initialize_ecc();
@@ -48,7 +48,7 @@ void S6B::configureRF()
 //takes:
 //  -msg_data, a pointer to an array of data to transmit
 //  -msg_size, the size of msg_data
-void S6B::encode_and_transmit(void *msg_data, uint8_t msg_size)
+void S6C::encode_and_transmit(void *msg_data, uint8_t msg_size)
 {
   //message must be withing the frame size constraints
   if (msg_size > 255 - NPAR)
@@ -99,7 +99,7 @@ void S6B::encode_and_transmit(void *msg_data, uint8_t msg_size)
 //configurePins:
 //Configures the pins needed for the radio.
 //The SPI configuration might not be needed, as RadioHead seems to already do it.
-void S6B::configurePins()
+void S6C::configurePins()
 {
   pinMode(GFSK_GATE, OUTPUT);
   pinMode(GFSK_SDN, OUTPUT);
@@ -118,21 +118,37 @@ void S6B::configurePins()
 
 //RadioOff:
 //disables the SiLabs Radio chip
-void S6B::RadioOff()
+void S6C::RadioOff()
 {
   digitalWrite(GFSK_GATE, HIGH);
 }
 
 //RadioOn:
 //enables the SiLabs Radio chip
-void S6B::RadioOn()
+void S6C::RadioOn()
 {
   digitalWrite(GFSK_GATE, LOW);
 }
 
+//LEDOff:
+//turns off LED
+//TODO allow config to disable LED on/off
+void S6C::LEDOff()
+{
+  digitalWrite(LED_PIN, HIGH);
+}
+
+//LEDOn:
+//turns on LED
+//TODO allow config to disable LED on/off
+void S6C::LEDOn()
+{
+  digitalWrite(LED_PIN, LOW);
+}
+
 //tryToRX:
 //attempts to process any recived messages
-uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
+uint8_t S6C::tryToRX(void *msg_data, uint8_t msg_size)
 {
   uint8_t data[300] = {0}; //32 bytes buffer room
   uint8_t data_size = msg_size + NPAR;
@@ -204,11 +220,11 @@ uint8_t S6B::tryToRX(void *msg_data, uint8_t msg_size)
 
 //getRSSI:
 //returns the last RSSI data
-uint8_t S6B::getRSSI()
+uint8_t S6C::getRSSI()
 {
   return lastRssi;
 }
 
-String S6B::getSyndrome(){
+String S6C::getSyndrome(){
   return errorSyndrome;
 }

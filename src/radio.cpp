@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "s6b.h"
+#include "s6c.h"
 #include "RadioInterface.h"
 
 #include "timer_utils.h"
@@ -53,15 +53,15 @@ bool force_transmit = false;
 
 int recv = 0;
 
-S6B s6b;
+S6C s6c;
 
 struct min_context min_ctx_usb;
 
 void restore_saved_config() {
 	memcpy(&CONFIG, (void*)saved_config, sizeof(struct radio_config));
-	s6b.rf24->setFrequency(CONFIG.frequency);
-	s6b.rf24->setDatarate(CONFIG.datarate);
-	s6b.rf24->setMessageLength(CONFIG.message_length + NPAR);
+	s6c.rf24->setFrequency(CONFIG.frequency);
+	s6c.rf24->setDatarate(CONFIG.datarate);
+	s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
 	ack_time = 0;
 }
 
@@ -116,7 +116,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			memcpy(&vf, min_payload + i + 1, 4);
 			if (vf >= 420 && vf <= 450) {
 				SerialUSB.println("Set frequency");
-				s6b.rf24->setFrequency(vf);
+				s6c.rf24->setFrequency(vf);
 				CONFIG.frequency = vf;
 			}
 			i += 5;
@@ -126,7 +126,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			memcpy(&vi, min_payload + i + 1, 2);
 			if (vi >= 0 && vi <= 3) {
 				SerialUSB.println("Set datarate");
-				s6b.rf24->setDatarate(vi);
+				s6c.rf24->setDatarate(vi);
 				CONFIG.datarate = vi;
 			}
 			i += 3;
@@ -146,7 +146,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			if (vi >= 0 && vi <= 234) {
 				vi++;
 				SerialUSB.println("Set message length");
-				s6b.rf24->setMessageLength(vi + NPAR);
+				s6c.rf24->setMessageLength(vi + NPAR);
 				CONFIG.message_length = vi;
 			}
 			i += 3;
@@ -222,19 +222,23 @@ void TC3_Handler() {
 
 
 void setup() {
+	s6c.configureLED();
+	s6c.LEDOn(true);
+	digitalWrite(LED_PIN, HIGH);
 	delay(3000);
 	SerialUSB.begin(115200);
 	SerialUSB.setTimeout(1);
 	SerialUSB.println("Starting...");
 	SerialUSB.println("hullo s6c");
 	//Serial1.begin(115200);
-	s6b.configureRF();
+	s6c.configureRF();
 	SerialUSB.println("Configured!!!!!");
 
 	min_init_context(&min_ctx_usb, 0);
 
 	setup_timer();
 	delay(1000);
+	s6c.LEDOff(true);
 }
 
 char DATA[] = "Desperta ferro! Desperta ferro! Sant Jordi! Sant Jordi! Arago! Arago!";
@@ -256,15 +260,17 @@ void loop() {
 			noInterrupts();
 			memcpy(current_transmission, transmit_buffer, CONFIG.message_length);
 			interrupts();
+			s6c.LEDOn();
 			SerialUSB.println("Sending");
 			uint32_t t0 = micros();
-			s6b.encode_and_transmit(current_transmission, CONFIG.message_length);
+			s6c.encode_and_transmit(current_transmission, CONFIG.message_length);
 			SerialUSB.println(((float)(micros()-t0))/1000.);
 			force_transmit = false;
+			s6c.LEDOff();
 		}
 	}
 	if (CONFIG.mode & MODE_RECEIVING) {
-		uint8_t rx = s6b.tryToRX(receive_buffer, CONFIG.message_length);
+		uint8_t rx = s6c.tryToRX(receive_buffer, CONFIG.message_length);
 		if (rx == 3 || rx == 1) {
 			if (schedule_config) {
 				schedule_config = false;
@@ -277,7 +283,7 @@ void loop() {
 				SerialUSB.println("it's a config message!");
 				min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], CONFIG.message_length - 1), 0);
 			}
-			receive_buffer[0] = s6b.getRSSI();
+			receive_buffer[0] = s6c.getRSSI();
 			receive_buffer[0] &= ~1U;
 			receive_buffer[0] |= (rx == 3);
 			for (int k=0; k<4; k++) SerialUSB.println();
@@ -289,10 +295,11 @@ void loop() {
 			k++;
 			SerialUSB.println(k);
 			SerialUSB.println("lesgo");*/
-
+			s6c.LEDOn();
 			min_send_frame(&min_ctx_usb, 3, (uint8_t*)(receive_buffer), CONFIG.message_length);
 
 			SerialUSB.println("Got message!");
+			s6c.LEDOff();
 			/*Serial1.write(RADIO_START_SEQUENCE,4);
 			Serial1.write((uint8_t*)RB_CMD, k);
 			Serial1.write(RADIO_END_SEQUENCE,4);*/
