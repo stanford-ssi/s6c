@@ -17,7 +17,19 @@ void S6C::configureRF()
   RadioOff();
   delay(500);
   RadioOn();
-  rf24->init();
+  bool initSuccess = rf24->init();
+
+
+  while(!initSuccess){
+    SerialUSB.print("Bootup failure with error code ");
+    SerialUSB.print(rf24->initializationStatus);
+    SerialUSB.println(". See RH_RF24.cpp for codes.");
+    blinkStatus(rf24->initializationStatus);
+    delay(1000);
+    SerialUSB.println("Attempting to reinitialize...");
+    initSuccess = rf24->init();
+  }
+
   uint8_t buf[8];
   if (!rf24->command(RH_RF24_CMD_PART_INFO, 0, 0, buf, sizeof(buf)))
   {
@@ -152,6 +164,21 @@ void S6C::LEDOn(bool force)
 void S6C::LEDOff(bool force)
 {
   digitalWrite(LED_PIN, LOW);
+}
+
+//blinkStatus:
+//Blink a couple times to indicate a status - blocking
+void S6C::blinkStatus(int blinks)
+{
+  digitalWrite(LED_PIN, LOW);
+  delay(250);
+  for(int i = 0; i < blinks; i++){
+    digitalWrite(LED_PIN, HIGH);
+    delay(100);
+    digitalWrite(LED_PIN, LOW);
+    delay(100);
+  }
+  delay(250);
 }
 
 //tryToRX:

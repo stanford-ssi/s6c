@@ -46,6 +46,7 @@ public:
   void configureLED();
   void LEDOn(bool = false);
   void LEDOff(bool = false);
+  void blinkStatus(int blinks);
 
 private:
   void RadioOff();

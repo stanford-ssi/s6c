@@ -865,6 +865,7 @@ public:
     /// - Sets the tranmitter power level to 16 (about 2.4dBm on RFM4)
     /// \return  true if everything was successful
     bool        init();
+    int initializationStatus = 0;
 
     /// Sets the chip mode that will be used when the RH_RF24 driver is idle (ie not transmitting or receiving)
     /// You can use this to control the power level consumed while idle, at the cost of slower

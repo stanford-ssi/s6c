@@ -223,8 +223,8 @@ void TC3_Handler() {
 
 void setup() {
 	s6c.configureLED();
+	s6c.blinkStatus(10);
 	s6c.LEDOn(true);
-	digitalWrite(LED_PIN, HIGH);
 	delay(3000);
 	SerialUSB.begin(115200);
 	SerialUSB.setTimeout(1);
