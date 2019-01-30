@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "s6c.h"
 #include "RadioInterface.h"
+#include <wiring_private.h>
 
 #include "timer_utils.h"
 
@@ -30,6 +31,16 @@
  *      - 7: 1000 kbps = 125 kB/s
  */
 
+#define HEADER_TX 10
+#define HEADER_RX 11
+
+Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+
+void SERCOM1_Handler()
+{
+  SerialHeader.IrqHandler();
+}
+
 struct radio_config {
 		int mode = 0b11;
 		float frequency = 433.5;
@@ -56,6 +67,7 @@ int recv = 0;
 S6C s6c;
 
 struct min_context min_ctx_usb;
+struct min_context min_ctx_header;
 
 void restore_saved_config() {
 	memcpy(&CONFIG, (void*)saved_config, sizeof(struct radio_config));
@@ -66,13 +78,19 @@ void restore_saved_config() {
 }
 
 uint16_t min_tx_space(uint8_t port) {
-	uint16_t n = 1;
-	if (port == 0) n = SerialUSB.availableForWrite();
-	return n;
+  uint16_t n = 1;
+  switch(port) {
+  case 0: n = SerialUSB.availableForWrite(); break;
+  case 1: n = SerialHeader.availableForWrite(); break;
+  }
+  return n;
 }
 
 void min_tx_byte(uint8_t port, uint8_t byte) {
-	if (port == 0) SerialUSB.write(&byte, 1U);
+  switch(port) {
+  case 0: SerialUSB.write(&byte, 1U);
+  case 1: SerialHeader.write(&byte, 1U);
+  }
 }
 
 uint32_t min_time_ms(void) {
@@ -201,9 +219,15 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 }
 
 void min_tx_start(uint8_t port) {}
-void min_tx_finished(uint8_t port) { SerialUSB.flush(); }
+void min_tx_finished(uint8_t port) {
+   /* switch(port) {
+    case 0: SerialUSB.flush();
+    case 1: SerialHeader.flush();
+    }*/
+}
 
 char serial_buffer_usb[32];
+char serial_buffer_header[32];
 
 void TC3_Handler() {
 	if (TC3->COUNT16.INTFLAG.bit.OVF && TC3->COUNT16.INTENSET.bit.OVF) {
@@ -215,26 +239,41 @@ void TC3_Handler() {
 		} else {
 			min_poll(&min_ctx_usb, 0, 0);
 		}
+
+		available = SerialHeader.available();
+		if (available > 0) {
+				if (available > 32) available = 32;
+				size_t buf_len = SerialHeader.readBytes(serial_buffer_header, available);
+				min_poll(&min_ctx_header, (uint8_t*)serial_buffer_header, (uint8_t)buf_len);
+		} else {
+			min_poll(&min_ctx_header, 0, 0);
+		}
 		//SerialUSB.println(micros());
 		REG_TC3_INTFLAG = TC_INTFLAG_OVF;         // Clear the OVF interrupt flag
 	}
 }
 
-
 void setup() {
 	s6c.configureLED();
 	s6c.blinkStatus(10);
+	delay(500);
+	s6c.blinkStatus(1);
 	s6c.LEDOn(true);
 	delay(3000);
 	SerialUSB.begin(115200);
 	SerialUSB.setTimeout(1);
 	SerialUSB.println("Starting...");
 	SerialUSB.println("hullo s6c");
-	//Serial1.begin(115200);
+
+	SerialHeader.begin(9600);
+	pinPeripheral(HEADER_RX, PIO_SERCOM);
+	pinPeripheral(HEADER_TX, PIO_SERCOM);
+
 	s6c.configureRF();
 	SerialUSB.println("Configured!!!!!");
 
 	min_init_context(&min_ctx_usb, 0);
+	min_init_context(&min_ctx_header, 1);
 
 	setup_timer();
 	delay(1000);
@@ -298,6 +337,7 @@ void loop() {
 			SerialUSB.println("lesgo");*/
 
 			min_send_frame(&min_ctx_usb, 3, (uint8_t*)(receive_buffer), CONFIG.message_length);
+			min_send_frame(&min_ctx_header, 3, (uint8_t*)(receive_buffer), CONFIG.message_length);
 
 			SerialUSB.println("Got message!");
 			s6c.LEDOff();
