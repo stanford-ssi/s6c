@@ -1,6 +1,6 @@
 import time 
 import os
-import websocket
+#import websocket
 import json
 import uuid
 import os
@@ -40,7 +40,7 @@ def msg(ws, message):
     print("[WS] ", message)
 
 def run_connection():
-    global ws
+    '''global ws
     while True:
         t = time.time()*1000.
         sign = t, hmac.new(str.encode(os.environ['KAI_KEY']), str.encode(str(int(t))), hashlib.sha256).hexdigest()
@@ -50,7 +50,7 @@ def run_connection():
                                     on_close=ohp,
                                     on_open=opened)
         ws.run_forever()
-
+'''
 
 def listen():
     outfile = open("data.txt", "a")
