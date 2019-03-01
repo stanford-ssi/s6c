@@ -209,12 +209,14 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			digitalWrite(PIN_ARM2,HIGH);
 			digitalWrite(PIN_ARM3,HIGH);
 			digitalWrite(PIN_ARM4,HIGH);
+			i += 1;
 			break;
 		case MESSAGE_DISARM:
 			digitalWrite(PIN_ARM1,LOW);
 			digitalWrite(PIN_ARM2,LOW);
 			digitalWrite(PIN_ARM3,LOW);
 			digitalWrite(PIN_ARM4,LOW);
+			i += 1;
 			break;
 		default:
 			break_out = true;
@@ -287,10 +289,10 @@ void setup() {
 	min_init_context(&min_ctx_usb, 0);
 	min_init_context(&min_ctx_header, 1);
 	
-	digitalWrite(PIN_ARM1,OUTPUT);
-	digitalWrite(PIN_ARM2,OUTPUT);
-	digitalWrite(PIN_ARM3,OUTPUT);
-	digitalWrite(PIN_ARM4,OUTPUT);
+	pinMode(PIN_ARM1,OUTPUT);
+	pinMode(PIN_ARM2,OUTPUT);
+	pinMode(PIN_ARM3,OUTPUT);
+	pinMode(PIN_ARM4,OUTPUT);
 
 	setup_timer();
 	delay(1000);
