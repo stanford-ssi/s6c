@@ -28,6 +28,11 @@
 #define PRINT_TIMING
 #define PRINT_ENCODED_DATA
 #define PRINT_RSSI
+
+#define PIN_ARM1 18 //SER01 - PA05 - 18
+#define PIN_ARM2 9 //SER03 - PA07 - 9
+#define PIN_ARM3 1 //SER22 - PA10 - 1
+#define PIN_ARM4 0 //SER23 - PA11 - 0
 /*
 S6B GFSK Library
 This library provides an abstraction for the S6B hardware developed by SSI.

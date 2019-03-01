@@ -204,6 +204,18 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			}
 			i += min_payload[i+1] + 2;
 			break;
+		case MESSAGE_ARM:
+			digitalWrite(PIN_ARM1,HIGH);
+			digitalWrite(PIN_ARM2,HIGH);
+			digitalWrite(PIN_ARM3,HIGH);
+			digitalWrite(PIN_ARM4,HIGH);
+			break;
+		case MESSAGE_DISARM:
+			digitalWrite(PIN_ARM1,LOW);
+			digitalWrite(PIN_ARM2,LOW);
+			digitalWrite(PIN_ARM3,LOW);
+			digitalWrite(PIN_ARM4,LOW);
+			break;
 		default:
 			break_out = true;
 			break;
