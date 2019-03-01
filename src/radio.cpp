@@ -286,10 +286,17 @@ void setup() {
 
 	min_init_context(&min_ctx_usb, 0);
 	min_init_context(&min_ctx_header, 1);
+	
+	digitalWrite(PIN_ARM1,OUTPUT);
+	digitalWrite(PIN_ARM2,OUTPUT);
+	digitalWrite(PIN_ARM3,OUTPUT);
+	digitalWrite(PIN_ARM4,OUTPUT);
 
 	setup_timer();
 	delay(1000);
 	s6c.LEDOff(true);
+
+
 }
 
 char DATA[] = "Desperta ferro! Desperta ferro! Sant Jordi! Sant Jordi! Arago! Arago!";
