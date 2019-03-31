@@ -6,6 +6,17 @@ S6C::S6C()
 {
   initialize_ecc();
   rf24 = new RH_RF24(GFSK_CS, GFSK_IRQ, GFSK_SDN);
+
+}
+
+uint16_t S6C::getHWID()
+{
+  return 0x00;
+}
+
+void S6C::clearHWIDfuse()
+{
+
 }
 
 //configureRF:

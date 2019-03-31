@@ -218,6 +218,15 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			digitalWrite(PIN_ARM4,LOW);
 			i += 1;
 			break;
+    case MESSAGE_READ_HWID:
+      s6c.getHWID();
+      break;
+    case MESSAGE_SET_HWID:
+      if (remaining < 2) { break_out = true; break; }
+      break;
+    case MESSAGE_CLEAR_HWID_FUSE: // don't do it!
+      s6c.clearHWIDfuse();
+      break;
 		default:
 			break_out = true;
 			break;
@@ -288,7 +297,7 @@ void setup() {
 
 	min_init_context(&min_ctx_usb, 0);
 	min_init_context(&min_ctx_header, 1);
-	
+
 	pinMode(PIN_ARM1,OUTPUT);
 	pinMode(PIN_ARM2,OUTPUT);
 	pinMode(PIN_ARM3,OUTPUT);
