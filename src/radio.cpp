@@ -223,6 +223,8 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
       break;
     case MESSAGE_SET_HWID:
       if (remaining < 2) { break_out = true; break; }
+      s6c.setHWID(((uint16_t)(min_payload[i+1]) << 8) | min_payload[i+2]);
+      i += 3;
       break;
     case MESSAGE_CLEAR_HWID_FUSE: // don't do it!
       s6c.clearHWIDfuse();

@@ -18,6 +18,6 @@
 #define MESSAGE_DISARM 9
 #define MESSAGE_READ_HWID 10
 #define MESSAGE_SET_HWID 11
-#define MESSAGE_CLEAR_HWID_FUSE 12 // don't do it!
+#define MESSAGE_CLEAR_HWID_FUSE 12
 
 #endif
