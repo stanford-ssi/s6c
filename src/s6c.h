@@ -39,7 +39,8 @@
 
 // EEPROM locations
 #define LOC_HWIDFUSE 0
-#define LOC_HWID 1
+#define LOC_HWID_MSB 1
+#define LOC_HWID_LSB 2
 
 /*
 S6C GFSK Library
@@ -51,7 +52,8 @@ class S6C
 public:
   S6C();
   uint16_t getHWID();
-  void clearHWIDfuse()
+  void clearHWIDfuse();
+  uint16_t setHWID(uint16_t new_HWID);
   void configureRF();
   void encode_and_transmit(void *msg_data, uint8_t msg_size);
   uint8_t tryToRX(void *msg_data, uint8_t msg_size);

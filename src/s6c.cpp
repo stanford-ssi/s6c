@@ -9,14 +9,33 @@ S6C::S6C()
 
 }
 
+//getHWID
+//returns hardware ID number for board
+//HWID is stored and returned MSB first
+//i.e. for the HWID 0x6C42, EEPROM position 1 will be 0x6C
 uint16_t S6C::getHWID()
 {
-  return 0x00;
+  return (EEPROM.read(LOC_HWID_MSB) << 8) | EEPROM.read(LOC_HWID_LSB);
 }
 
+//clearHWIDfuse
+//adds a step that makes it harder to overwrite the HW ID
 void S6C::clearHWIDfuse()
 {
+  EEPROM.write(LOC_HWIDFUSE, 0);
+}
 
+//setHWID
+//if fuse is disabled, overwrites hardware ID in EEPROM
+//DANGER: Do not call this repeatedly, as EEPROM has
+//a limited number of writes before the hardware is irreparably damaged
+uint16_t S6C::setHWID(uint16_t new_HWID){
+  if(!EEPROM.read(LOC_HWIDFUSE)){
+    EEPROM.write(LOC_HWID_MSB, (uint8_t)((new_HWID & 0xFF00) >> 8));
+    EEPROM.write(LOC_HWID_LSB, (uint8_t)(new_HWID & 0xFF));
+    EEPROM.write(LOC_HWIDFUSE, 1);
+    EEPROM.commit();
+  }
 }
 
 //configureRF:
