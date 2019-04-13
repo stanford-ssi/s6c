@@ -1,4 +1,4 @@
-import time 
+import time
 import os
 #import websocket
 import json
@@ -61,6 +61,7 @@ def listen():
             for f in frames:
                 outfile.write(str(f.payload) + '\n')
                 outfile.flush()
+                print(repr(f.payload))
                 out = struct.unpack("iii", f.payload[1:13])
                 print(out)
                 data = {"id":str(uuid.uuid4()), "mission": 53, "timestamp": int(time.time()*1000), "latitude": out[0]/1000000, "longitude": out[1]/1000000, "altitude": out[2]}
@@ -137,12 +138,12 @@ while True:
                 print('queued local frame', msg)
                 handler.send_frame(min_id=0x01, payload=bytes(msg))
 
-            
+
         with open(cmd_file,'w') as f:
             pass
     time.sleep(0.5)
     #print("Sent")
     #inp  = input('')
     #handler.send_frame(min_id=0x01, payload=struct.pack('<bH', 1, 0b01))#bytes("hi", encoding='ascii'))
-    
+
     #break
