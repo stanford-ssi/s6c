@@ -3,7 +3,7 @@
 
 import time
 import random
-from mc_interface import on_downlinked_data
+from mc_interface import on_downlinked_data, listen_for_data_to_uplink
 from min import MINFrame
 
 # Note that in a previous version, we parsed as follows. This may be useful for understanding the format.
@@ -30,7 +30,7 @@ def create_mock_data():
         print('[Mock S6C] Sending datapoint with altitude %d' % altitude)
         # start with random data, and fill in anything useful
         payload = bytearray(random.getrandbits(8) for _ in range(payload_length))
-        payload[1:4] = altitude.to_bytes(4, byteorder=byte_order)
+        payload[9:13] = altitude.to_bytes(4, byteorder=byte_order)
 
         frame = MINFrame(min_id=min_id, payload=bytes(payload), seq=sequence_number, transport=False)
         on_downlinked_data(frame)
@@ -38,8 +38,9 @@ def create_mock_data():
         sequence_number += 1
         altitude += ascent_rate
 
-        time.sleep(1)
+        time.sleep(10)
 
 
 if __name__ == "__main__":
+    listen_for_data_to_uplink(lambda x: print('[Mock S6C] Uplinking', x))
     create_mock_data()
