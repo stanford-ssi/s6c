@@ -44,7 +44,7 @@ uint16_t S6C::setHWID(uint16_t new_HWID){
 
 //configureRF:
 //Configures the Radio Hardware, sets registers, and prepares for transmission
-void S6C::configureRF()
+void S6C::configureRF(radio_config& CONFIG)
 {
   configurePins();
   initialize_ecc();
@@ -63,6 +63,8 @@ void S6C::configureRF()
     SerialUSB.println("Attempting to reinitialize...");
     initSuccess = rf24->init();
   }
+
+  rf24->setMessageLength(CONFIG.message_length + NPAR);
 
   uint8_t buf[8];
   if (!rf24->command(RH_RF24_CMD_PART_INFO, 0, 0, buf, sizeof(buf)))

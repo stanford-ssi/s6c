@@ -44,15 +44,16 @@ void SERCOM1_Handler()
   SerialHeader.IrqHandler();
 }
 
-struct radio_config {
-		int mode = 0b11;
-		float frequency = 433.5;
-		bool transmit_continuous = 0;
-		int datarate = 0;
-		unsigned int interval = 1000;
-		unsigned int message_length = 20;
-		unsigned int ack_interval = 60000;
-} CONFIG;
+struct radio_config CONFIG = {};
+
+CONFIG.mode = 0b11;
+CONFIG.frequency = 433.5;
+CONFIG.transmit_continuous = 0;
+CONFIG.datarate = 0;
+CONFIG.interval = 1000;
+CONFIG.message_length = 20;
+CONFIG.ack_interval = 60000;
+
 
 char saved_config[sizeof(struct radio_config)];
 uint32_t ack_time = 0;
@@ -312,7 +313,7 @@ void setup() {
 	pinPeripheral(HEADER_RX, PIO_SERCOM);
 	pinPeripheral(HEADER_TX, PIO_SERCOM);
 
-	s6c.configureRF();
+	s6c.configureRF(CONFIG);
 	SerialUSB.println("Configured!!!!!");
 
 	min_init_context(&min_ctx_usb, 0);
