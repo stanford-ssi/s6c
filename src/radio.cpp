@@ -13,6 +13,9 @@
 
 #define BUFFER_SIZE 256
 
+#define REV_MAJOR 2
+#define REV_MINOR 0
+
 /* Configuration
  * -------------
  *   mode: transmit and/or receive
@@ -293,9 +296,9 @@ void TC3_Handler() {
 
 void setup() {
 	s6c.configureLED();
-	s6c.blinkStatus(10);
+	s6c.blinkStatus(REV_MAJOR);
 	delay(500);
-	s6c.blinkStatus(1);
+	s6c.blinkStatus(REV_MINOR);
 	s6c.LEDOn(true);
 	delay(3000);
 	SerialUSB.begin(115200);
