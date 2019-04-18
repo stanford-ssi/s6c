@@ -82,14 +82,16 @@ uint16_t min_tx_space(uint8_t port) {
   switch(port) {
   case 0: n = SerialUSB.availableForWrite(); break;
   case 1: n = SerialHeader.availableForWrite(); break;
+  default: break;
   }
   return n;
 }
 
 void min_tx_byte(uint8_t port, uint8_t byte) {
   switch(port) {
-  case 0: SerialUSB.write(&byte, 1U);
-  case 1: SerialHeader.write(&byte, 1U);
+  case 0: SerialUSB.write(&byte, 1U); break;
+  case 1: SerialHeader.write(&byte, 1U); break;
+  default: break;
   }
 }
 
@@ -218,14 +220,25 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			digitalWrite(PIN_ARM4,LOW);
 			i += 1;
 			break;
+
     case MESSAGE_READ_HWID:
-      s6c.getHWID();
+    {
+      uint16_t hwid = s6c.getHWID();
+
+      switch(port) {
+        case 0: SerialUSB.println(hwid, HEX); break;
+        case 1: SerialHeader.println(hwid, HEX); break;
+        default: break;// command initiated over radio; ignore
+      }
+
       break;
+    }
     case MESSAGE_SET_HWID:
       if (remaining < 2) { break_out = true; break; }
       s6c.setHWID(((uint16_t)(min_payload[i+1]) << 8) | min_payload[i+2]);
       i += 3;
       break;
+
     case MESSAGE_CLEAR_HWID_FUSE: // don't do it!
       s6c.clearHWIDfuse();
       break;
@@ -353,7 +366,7 @@ void loop() {
 			if (receive_buffer[0] & 128) {
 				receive_buffer[0] &= ~128U;
 				SerialUSB.println("it's a config message!");
-				min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], CONFIG.message_length - 1), 0);
+				min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], CONFIG.message_length - 1), 2);
 			}
 			receive_buffer[0] = s6c.getRSSI();
 			receive_buffer[0] &= ~1U;
