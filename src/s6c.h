@@ -42,19 +42,9 @@
 #define LOC_HWID_MSB 1
 #define LOC_HWID_LSB 2
 
-struct radio_config {
-		int mode;
-		float frequency;
-		bool transmit_continuous;
-		int datarate;
-		unsigned int interval;
-		unsigned int message_length;
-		unsigned int ack_interval;
-};
-
 /*
 S6C GFSK Library
-This library provides an abstraction for the S6C hardware developed by SSI.
+This library provides an abstraction for the S6B hardware developed by SSI.
 */
 
 class S6C
@@ -64,7 +54,7 @@ public:
   uint16_t getHWID();
   void clearHWIDfuse();
   uint16_t setHWID(uint16_t new_HWID);
-  void configureRF(radio_config& CONFIG);
+  void configureRF();
   void encode_and_transmit(void *msg_data, uint8_t msg_size);
   uint8_t tryToRX(void *msg_data, uint8_t msg_size);
   uint8_t getRSSI();
