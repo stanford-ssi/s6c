@@ -313,6 +313,7 @@ void setup() {
 	pinPeripheral(HEADER_TX, PIO_SERCOM);
 
 	s6c.configureRF();
+  s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
 	SerialUSB.println("Configured!!!!!");
 
 	min_init_context(&min_ctx_usb, 0);

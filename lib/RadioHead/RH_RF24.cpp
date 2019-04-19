@@ -135,7 +135,7 @@ bool RH_RF24::init()
 
 	set4GFSK(false);
 
-	setMessageLength(40);
+	//setMessageLength(40);
 
 	SerialUSB.println("G");
     // Clear all other fields so they are never used, irrespective of the radio_config
