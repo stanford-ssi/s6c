@@ -376,7 +376,7 @@ void setup() {
 	delay(500);
 	s6c.blinkStatus(REV_MINOR);
 	s6c.LEDOn(true);
-	delay(3000);
+	delay(1000);
 	SerialUSB.begin(115200);
 	SerialUSB.setTimeout(1);
 	SerialUSB.println("Starting...");
@@ -400,7 +400,7 @@ void setup() {
 	pinMode(PIN_ARM4,OUTPUT);
 
 	setup_timer();
-	delay(1000);
+	delay(100);
 	s6c.LEDOff(true);
 
 
