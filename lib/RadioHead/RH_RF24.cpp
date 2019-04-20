@@ -5,8 +5,6 @@
 
 #include <RH_RF24.h>
 
-#include "ss6c_500bps.h"
-
 // Interrupt vectors for the 3 Arduino interrupt pins
 // Each interrupt can be handled by a different instance of RH_RF24, allowing you to have
 // 2 or more RF24s per Arduino
@@ -145,7 +143,7 @@ bool RH_RF24::init()
     set_properties(RH_RF24_PROPERTY_PKT_FIELD_4_LENGTH_12_8, pkt_fieldn, sizeof(pkt_fieldn));
     set_properties(RH_RF24_PROPERTY_PKT_FIELD_5_LENGTH_12_8, pkt_fieldn, sizeof(pkt_fieldn));
 
-    setPreambleLength(5);
+    setPreambleLength(PREAMBLE_LENGTH);
     setTxPower(0x7f);
 
 	SerialUSB.println("H");
@@ -177,7 +175,7 @@ bool RH_RF24::setDatarate(int mode) {
 	SerialUSB.println((int)speed_config[1]);
 	SerialUSB.println((int)speed_config[2]);
 	configure(speed_config[mode]);
-	setPreambleLength(5);
+	setPreambleLength(PREAMBLE_LENGTH);
 
 	return true;
 }

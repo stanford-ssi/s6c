@@ -23,6 +23,13 @@
 
 #include <RHGenericSPI.h>
 #include <RHSPIDriver.h>
+#include "ss6c_500bps.h"
+
+// Length of packet preamble, in bytes
+#define PREAMBLE_LENGTH 5
+
+const int SYNC_CONFIG_ADDRESSABLE[] = {RF_SYNC_CONFIG_5}; // hacky way of accessing RF_SYNC_CONFIG_5, defined in ss6c_500bps.h
+const int NUM_SYNC_WORDS = SYNC_CONFIG_ADDRESSABLE[4] & 0x03; // see ss6c_500bps.h, SiLabs AN626 page 16 - this gets the number of bytes of sync word
 
 // This is the maximum number of interrupts the driver can support
 // Most Arduinos can handle 2, Megas can handle more

@@ -52,6 +52,8 @@ struct radio_config {
 		unsigned int interval = 1000;
 		unsigned int message_length = 20;
 		unsigned int ack_interval = 60000;
+    uint16_t epoch_slots = 4;
+    uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 } CONFIG;
 
 char saved_config[sizeof(struct radio_config)];
@@ -71,6 +73,78 @@ S6C s6c;
 
 struct min_context min_ctx_usb;
 struct min_context min_ctx_header;
+
+
+// TDMA
+////////////////////////////////////////////////////
+const unsigned long bits_per_second[] = {500, 5000, 10000, 50000, 100000, 250000, 500000, 1000000};
+const unsigned long us_per_byte[] = {16000, 1600, 800, 160, 80, 32, 16, 8};
+const unsigned long TDMA_SLOT_MARGIN_US = 5000; // how much larger is a slot than the message within it
+const unsigned long TDMA_MSG_MARGIN_US = 1000; // how much margin to use for time required to send a message
+
+void setTDMAlengths();
+void updateTDMA();
+unsigned long validTDMAsend();
+unsigned long dif_micros(unsigned long start, unsigned long end);
+
+unsigned long epoch_start_us = 0; // Time this TDMA epoch started
+unsigned long epoch_time_us = 0; // Time elapsed during this TDMA epoch
+unsigned int epoch_slot = 0; // Which slot in the TDMA epoch is currently active
+unsigned long slot_start_us = 0; // Time this slot started
+unsigned long slot_time_us = 0; // Time elapsed during this TDMA slot
+unsigned int msg_length_bytes; // size of each transmission, in bytes
+unsigned long msg_length_us; // size of each transmission, in microseconds
+unsigned long slot_length_us; // size of each slot, in microseconds
+unsigned long epoch_length_us; // length of a TDMA epoch, in microseconds
+
+void setTDMAlengths(){
+  msg_length_bytes = PREAMBLE_LENGTH + NUM_SYNC_WORDS + CONFIG.message_length +  NPAR;
+  msg_length_us = msg_length_bytes * us_per_byte[CONFIG.datarate];
+  slot_length_us = msg_length_us + TDMA_SLOT_MARGIN_US;
+  epoch_length_us = slot_length_us * CONFIG.epoch_slots;
+}
+
+void updateTDMA(){
+  unsigned long now = micros();
+  unsigned long new_epoch_time = dif_micros(epoch_start_us, now);
+  unsigned long new_slot_time = dif_micros(slot_start_us, now);
+
+  // slot rollover
+  if(new_slot_time > slot_length_us){
+    new_slot_time -= slot_length_us;
+    slot_start_us = now - new_epoch_time;
+    epoch_slot++;
+  }
+
+  // epoch rollover
+  if(new_epoch_time > epoch_length_us){
+    new_epoch_time -= epoch_length_us;
+    epoch_start_us = now - new_epoch_time;
+    epoch_slot = 0;
+  }
+
+  slot_time_us = new_slot_time;
+  epoch_time_us = new_epoch_time;
+}
+
+// assess whether or not a message can currently be sent per TDMA rules
+unsigned long validTDMAsend(){
+  uint16_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
+
+  if(one_hot_slot & CONFIG.allocated_slots){ // check if currently in a slot allocated to this device
+    if(slot_length_us - slot_time_us > msg_length_us + TDMA_MSG_MARGIN_US){ // check if enough time left in this slot to send a message
+      return slot_length_us - (slot_time_us + msg_length_us + TDMA_MSG_MARGIN_US); // return leftover margin in us
+    }
+  }
+
+  return 0;
+}
+
+// rollover-safe timekeeping function
+unsigned long dif_micros(unsigned long start, unsigned long end){
+  if(end > start) return end - start;
+  else return end + (-1 - start); // compute how far start was from rollover, add to how far end is past rollover
+}
 
 void restore_saved_config() {
 	memcpy(&CONFIG, (void*)saved_config, sizeof(struct radio_config));
@@ -314,6 +388,7 @@ void setup() {
 
 	s6c.configureRF();
   s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
+  setTDMAlengths();
 	SerialUSB.println("Configured!!!!!");
 
 	min_init_context(&min_ctx_usb, 0);
@@ -340,23 +415,27 @@ void loop() {
 		min_queue_frame(&min_ctx_usb, 4, (uint8_t*)("got it fam"), 10);
 		last = millis();
 	}*/
+
+  updateTDMA();
+
 	if (ack_time > 0 && millis() > ack_time) {
 		restore_saved_config();
 	}
 	if (CONFIG.mode & MODE_TRANSMITTING) {
-		if ((CONFIG.transmit_continuous || force_transmit) &&
-				(millis() - last_transmission_time >= CONFIG.interval)) {
-			last_transmission_time = millis();
-			noInterrupts();
-			memcpy(current_transmission, transmit_buffer, CONFIG.message_length);
-			interrupts();
-			s6c.LEDOn();
-			SerialUSB.println("Sending");
-			uint32_t t0 = micros();
-			s6c.encode_and_transmit(current_transmission, CONFIG.message_length);
-			SerialUSB.println(((float)(micros()-t0))/1000.);
-			force_transmit = false;
-			s6c.LEDOff();
+		if ((CONFIG.transmit_continuous && (millis() - last_transmission_time >= CONFIG.interval)) || force_transmit) {
+      if(validTDMAsend()){
+  			last_transmission_time = millis();
+  			noInterrupts();
+  			memcpy(current_transmission, transmit_buffer, CONFIG.message_length);
+  			interrupts();
+  			s6c.LEDOn();
+  			SerialUSB.println("Sending");
+  			uint32_t t0 = micros();
+  			s6c.encode_and_transmit(current_transmission, CONFIG.message_length);
+  			SerialUSB.println(((float)(micros()-t0))/1000.);
+  			force_transmit = false;
+  			s6c.LEDOff();
+      }
 		}
 	}
 	if (CONFIG.mode & MODE_RECEIVING) {
