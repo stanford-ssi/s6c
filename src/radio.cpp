@@ -129,13 +129,15 @@ void resyncTDMA(unsigned long new_epoch_time){
 
   // figure out which slot it currently is
   uint8_t new_slot = mutable_new_epoch_time/slot_length_us;
+  unsigned long new_slot_start = mutable_new_epoch_time + (slot_length_us * new_slot);
+  unsigned long new_slot_time = now - (slot_length_us * new_slot);
 
   epoch_start_us = new_epoch_start;
-  int breakpoint = 1/0;
-  slot_start_us = now; // wrong
-  slot_time_us = 0;
-  epoch_time_us = 0;
+  slot_start_us = new_slot_start;
+  slot_time_us = new_slot_time;
+  epoch_time_us = mutable_new_epoch_time;
 
+  // TDMA has been synchronized; reenable transmission
   TDMA_sync = 1;
 }
 
