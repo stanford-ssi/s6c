@@ -52,7 +52,8 @@ struct radio_config {
 		unsigned int interval = 1000;
 		unsigned int message_length = 20;
 		unsigned int ack_interval = 60000;
-    uint16_t epoch_slots = 4;
+    bool tdma_enabled = 1;
+    uint8_t epoch_slots = 4;
     uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 } CONFIG;
 
@@ -80,28 +81,62 @@ struct min_context min_ctx_header;
 const unsigned long bits_per_second[] = {500, 5000, 10000, 50000, 100000, 250000, 500000, 1000000};
 const unsigned long us_per_byte[] = {16000, 1600, 800, 160, 80, 32, 16, 8};
 const unsigned long TDMA_SLOT_MARGIN_US = 5000; // how much larger is a slot than the message within it
-const unsigned long TDMA_MSG_MARGIN_US = 1000; // how much margin to use for time required to send a message
+const unsigned long TDMA_MSG_MARGIN_US = 1000; // how much margin to use for time required to send a message - only used to check if there is enough time left to send
 
 void setTDMAlengths();
 void updateTDMA();
+void resyncTDMA(long offset);
 unsigned long validTDMAsend();
 unsigned long dif_micros(unsigned long start, unsigned long end);
 
 unsigned long epoch_start_us = 0; // Time this TDMA epoch started
-unsigned long epoch_time_us = 0; // Time elapsed during this TDMA epoch
-unsigned int epoch_slot = 0; // Which slot in the TDMA epoch is currently active
+unsigned long epoch_time_us = 0; // Time elapsed so far during this TDMA epoch
+uint16_t epoch_slot = 0; // Which slot in the TDMA epoch is currently active
 unsigned long slot_start_us = 0; // Time this slot started
-unsigned long slot_time_us = 0; // Time elapsed during this TDMA slot
+unsigned long slot_time_us = 0; // Time elapsed so far during this TDMA slot
 unsigned int msg_length_bytes; // size of each transmission, in bytes
-unsigned long msg_length_us; // size of each transmission, in microseconds
-unsigned long slot_length_us; // size of each slot, in microseconds
+unsigned long msg_length_us; // size of each transmission, in microseconds - this is the exact length of a message, with no margin
+unsigned long slot_length_us; // size of each slot, in microseconds - this equals msg_length_us + TDMA_SLOT_MARGIN_US
 unsigned long epoch_length_us; // length of a TDMA epoch, in microseconds
+bool TDMA_sync = 0; // whether or not the device is properly TDMA synced
 
 void setTDMAlengths(){
   msg_length_bytes = PREAMBLE_LENGTH + NUM_SYNC_WORDS + CONFIG.message_length +  NPAR;
   msg_length_us = msg_length_bytes * us_per_byte[CONFIG.datarate];
   slot_length_us = msg_length_us + TDMA_SLOT_MARGIN_US;
   epoch_length_us = slot_length_us * CONFIG.epoch_slots;
+
+  TDMA_sync = 0; // desync TDMA, preventing transmission until resynced
+}
+
+// sets up TDMA epoch to start at the current time minus an offset
+// offset supplied as the new epoch time; give this function the new epoch time
+// and it will figure out which slot it is currently in and when the epoch started
+// enables TDMA_sync, telling the radio it has been properly synced up and can safely transmit
+void resyncTDMA(unsigned long new_epoch_time){
+
+  unsigned long mutable_new_epoch_time = new_epoch_time;
+
+  // if you specify an offset longer than an epoch (not desirable, but possible)
+  // using the modulus "skips" forward to the current epoch, gets epoch time
+  // in this epoch and makes slot determination work correctly
+  if(mutable_new_epoch_time > epoch_length_us) mutable_new_epoch_time %= epoch_length_us;
+
+  // this is rollover-safe; if offset > micros(), this will set new_epoch_start
+  // to a large positive value, which other code will correctly interpret
+  unsigned long now = micros();
+  unsigned long new_epoch_start = now - mutable_new_epoch_time;
+
+  // figure out which slot it currently is
+  uint8_t new_slot = mutable_new_epoch_time/slot_length_us;
+
+  epoch_start_us = new_epoch_start;
+  int breakpoint = 1/0;
+  slot_start_us = now; // wrong
+  slot_time_us = 0;
+  epoch_time_us = 0;
+
+  TDMA_sync = 1;
 }
 
 void updateTDMA(){
@@ -129,6 +164,10 @@ void updateTDMA(){
 
 // assess whether or not a message can currently be sent per TDMA rules
 unsigned long validTDMAsend(){
+  if(!CONFIG.tdma_enabled) return -1; // note: this returns a nonzero value and therefore allows a message to be sent
+
+  if(!TDMA_sync) return 0; // if TDMA enabled, and not synced, prevent messages from being sent (until synced)
+
   uint16_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
 
   if(one_hot_slot & CONFIG.allocated_slots){ // check if currently in a slot allocated to this device
@@ -141,6 +180,7 @@ unsigned long validTDMAsend(){
 }
 
 // rollover-safe timekeeping function
+// COMPUTES POSITIVE DISTANCE BETWEEN TWO TIMESTAMPS
 unsigned long dif_micros(unsigned long start, unsigned long end){
   if(end > start) return end - start;
   else return end + (-1 - start); // compute how far start was from rollover, add to how far end is past rollover
@@ -151,6 +191,7 @@ void restore_saved_config() {
 	s6c.rf24->setFrequency(CONFIG.frequency);
 	s6c.rf24->setDatarate(CONFIG.datarate);
 	s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
+  setTDMAlengths();
 	ack_time = 0;
 }
 
@@ -225,6 +266,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 				SerialUSB.println("Set datarate");
 				s6c.rf24->setDatarate(vi);
 				CONFIG.datarate = vi;
+        setTDMAlengths();
 			}
 			i += 3;
 			break;
@@ -245,6 +287,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 				SerialUSB.println("Set message length");
 				s6c.rf24->setMessageLength(vi + NPAR);
 				CONFIG.message_length = vi;
+        setTDMAlengths();
 			}
 			i += 3;
 			break;
@@ -256,6 +299,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 					SerialUSB.println(CONFIG.transmit_continuous);
 						SerialUSB.println(vi);
 				CONFIG.transmit_continuous = vi;
+        CONFIG.tdma_enabled = !CONFIG.transmit_continuous; // disable TDMA if set to continuous transmission, enable if not continuous
 			}
 			i += 3;
 			break;
