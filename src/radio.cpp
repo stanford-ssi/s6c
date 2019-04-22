@@ -229,6 +229,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 	int i = 0;
 	float vf = 0;
 	int16_t vi = 0;
+  unsigned long vl = 0;
 	while (i < len_payload) {
 		int message_type = min_payload[i];
 		int remaining = len_payload - i - 1;
@@ -367,6 +368,14 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
       s6c.clearHWIDfuse();
       SerialUSB.println("Clearing HWID fuse");
       break;
+
+    case MESSAGE_TDMA_SYNC:
+      if (remaining < 4) { break_out = true; break; }
+      memcpy(&vl, min_payload + i + 1, 4);
+      resyncTDMA(vl);
+      break;
+
+
 		default:
 			break_out = true;
 			break;
