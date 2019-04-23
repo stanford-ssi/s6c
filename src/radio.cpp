@@ -17,21 +17,19 @@ char transmit_buffer[BUFFER_SIZE];
 char receive_buffer[BUFFER_SIZE];
 char current_transmission[BUFFER_SIZE];
 
-
 #define REV_MAJOR 2
 #define REV_MINOR 0
 
 #define USB_SERIAL_BAUD 115200
 #define HEADER_SERIAL_BAUD 9600
-#define HEADER_TX 10
-#define HEADER_RX 11
-
+#define HEADER_TX_PIN 10
+#define HEADER_RX_PIN 11
 
 // If this magic number is written into location 0 in EEPROM, then we assume
 // that a valid config is saved to EEPROM.
 #define SASHA_DEVIL_MAGIC 13
 
-Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+Uart SerialHeader(&sercom1, HEADER_RX_PIN, HEADER_TX_PIN, SERCOM_RX_PAD_2, UART_TX_PAD_0);
 
 void SERCOM1_Handler()
 {
@@ -490,8 +488,8 @@ void setup() {
     SerialUSB.println("Starting...");
 
     SerialHeader.begin(HEADER_SERIAL_BAUD);
-    pinPeripheral(HEADER_RX, PIO_SERCOM);
-    pinPeripheral(HEADER_TX, PIO_SERCOM);
+    pinPeripheral(HEADER_RX_PIN, PIO_SERCOM);
+    pinPeripheral(HEADER_TX_PIN, PIO_SERCOM);
 
     SerialUSB.println("Configuring RF...");
     s6c.configureRF();
