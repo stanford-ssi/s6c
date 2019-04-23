@@ -290,7 +290,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
                 SerialUSB.println("Set message length");
                 s6c.rf24->setMessageLength(vi + NPAR);
                 CONFIG.message_length = vi;
-        setTDMAlengths();
+        		setTDMAlengths();
             }
             i += 3;
             break;
@@ -302,7 +302,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
                     SerialUSB.println(CONFIG.transmit_continuous);
                         SerialUSB.println(vi);
                 CONFIG.transmit_continuous = vi;
-        CONFIG.tdma_enabled = !CONFIG.transmit_continuous; // disable TDMA if set to continuous transmission, enable if not continuous
+        		CONFIG.tdma_enabled = !CONFIG.transmit_continuous; // disable TDMA if set to continuous transmission, enable if not continuous
             }
             i += 3;
             break;
