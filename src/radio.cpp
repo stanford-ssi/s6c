@@ -269,7 +269,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
                 SerialUSB.println("Set datarate");
                 s6c.rf24->setDatarate(vi);
                 CONFIG.datarate = vi;
-        setTDMAlengths();
+                setTDMAlengths();
             }
             i += 3;
             break;
@@ -299,8 +299,8 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             memcpy(&vi, min_payload + i + 1, 2);
             if (vi >= 0 && vi <= 1) {
                 SerialUSB.println("Set continuous mode");
-                    SerialUSB.println(CONFIG.transmit_continuous);
-                        SerialUSB.println(vi);
+                SerialUSB.println(CONFIG.transmit_continuous);
+                SerialUSB.println(vi);
                 CONFIG.transmit_continuous = vi;
         		CONFIG.tdma_enabled = !CONFIG.transmit_continuous; // disable TDMA if set to continuous transmission, enable if not continuous
             }
