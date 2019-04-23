@@ -19,6 +19,8 @@
 #define USB_SERIAL_BAUD 115200
 #define UART_SERIAL_BAUD 9600
 
+#define SASHA_DEVIL_MAGIC 13
+
 /* Configuration
  * -------------
  *   mode: transmit and/or receive
@@ -58,12 +60,15 @@ struct radio_config {
     bool tdma_enabled = 0;
     uint8_t epoch_slots = 4;
     uint32_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
-} CONFIG;
+};
 
-uint8_t old_config[sizeof(CONFIG)];
+struct radio_config global_config;      // global config
+struct radio_config last_eeprom_config; // last-EEPROM-written config
+struct radio_config quicksave_config;   // Joank
+uint32_t quicksave_acktime = 0;
 
-char saved_config[sizeof(struct radio_config)];
-uint32_t ack_time = 0;
+
+
 
 /* TODO: replace with planned smart-blah-blah-mmap-y buffer system. */
 char transmit_buffer[BUFFER_SIZE];
@@ -81,27 +86,29 @@ struct min_context min_ctx_usb;
 struct min_context min_ctx_header;
 
 
+/* Talking to the EEPROM */
 void read_eeprom_config(uint8_t *out) {
-	for (int i=0; i<(sizeof(CONFIG)); i++) {
+	for (size_t i = 0; i<(sizeof(global_config)); i++) {
 		out[i] = EEPROM.read(LOC_CONFIG + 1 + i);
 	}
 }
 
 void maybe_save_config() {
-	uint8_t *new_config = (uint8_t*)&CONFIG;
+	uint8_t *new_config = (uint8_t *) &global_config;
 	bool should_save = false;
-	for (int i=0; i<(sizeof(CONFIG)); i++) {
-		if (new_config[i] != old_config[i]) {
+	for (size_t i = 0; i<(sizeof(global_config)); i++) {
+		if (new_config[i] != ((uint8_t *) &last_eeprom_config)[i]) {
 			should_save = true;
 		}
 	}
 	if (should_save) {
-		SerialUSB.println("Saving new config to EEPROM!\n");
-		for (int i=0; i<(sizeof(CONFIG)); i++) {
+		SerialUSB.println("Saving new config to EEPROM...\n");
+        EEPROM.write(LOC_CONFIG, SASHA_DEVIL_MAGIC);
+		for (size_t i = 0; i<(sizeof(global_config)); i++) {
 			EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
 		}
 		EEPROM.commit();
-		memcpy(old_config, new_config, sizeof(CONFIG));
+		memcpy(&last_eeprom_config, new_config, sizeof(global_config));
 	}
 }
 
@@ -131,10 +138,10 @@ unsigned long epoch_length_us; // length of a TDMA epoch, in microseconds
 bool TDMA_sync = 0; // whether or not the device is properly TDMA synced
 
 void setTDMAlengths(){
-    msg_length_bytes = PREAMBLE_LENGTH + NUM_SYNC_WORDS + CONFIG.message_length +    NPAR;
-    msg_length_us = msg_length_bytes * us_per_byte[CONFIG.datarate];
+    msg_length_bytes = PREAMBLE_LENGTH + NUM_SYNC_WORDS + global_config.message_length +    NPAR;
+    msg_length_us = msg_length_bytes * us_per_byte[global_config.datarate];
     slot_length_us = msg_length_us + TDMA_SLOT_MARGIN_US;
-    epoch_length_us = slot_length_us * CONFIG.epoch_slots;
+    epoch_length_us = slot_length_us * global_config.epoch_slots;
 
     TDMA_sync = 0; // desync TDMA, preventing transmission until resynced
 }
@@ -196,13 +203,13 @@ void updateTDMA(){
 
 // assess whether or not a message can currently be sent per TDMA rules
 unsigned long validTDMAsend(){
-    if(!CONFIG.tdma_enabled) return -1; // note: this returns a nonzero value and therefore allows a message to be sent
+    if(!global_config.tdma_enabled) return -1; // note: this returns a nonzero value and therefore allows a message to be sent
 
     if(!TDMA_sync) return 0; // if TDMA enabled, and not synced, prevent messages from being sent (until synced)
 
     uint32_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
 
-    if(one_hot_slot & CONFIG.allocated_slots){ // check if currently in a slot allocated to this device
+    if(one_hot_slot & global_config.allocated_slots){ // check if currently in a slot allocated to this device
         if(slot_length_us - slot_time_us > msg_length_us + TDMA_MSG_MARGIN_US){ // check if enough time left in this slot to send a message
             return slot_length_us - (slot_time_us + msg_length_us + TDMA_MSG_MARGIN_US); // return leftover margin in us
         }
@@ -219,12 +226,12 @@ unsigned long dif_micros(unsigned long start, unsigned long end){
 }
 
 void restore_saved_config() {
-    memcpy(&CONFIG, (void*)saved_config, sizeof(struct radio_config));
-    s6c.rf24->setFrequency(CONFIG.frequency);
-    s6c.rf24->setDatarate(CONFIG.datarate);
-    s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
+    memcpy(&global_config, (void*) &quicksave_config, sizeof(struct radio_config));
+    s6c.rf24->setFrequency(global_config.frequency);
+    s6c.rf24->setDatarate(global_config.datarate);
+    s6c.rf24->setMessageLength(global_config.message_length + NPAR);
   setTDMAlengths();
-    ack_time = 0;
+    quicksave_acktime = 0;
 }
 
 uint16_t min_tx_space(uint8_t port) {
@@ -267,7 +274,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
         switch (message_type) {
         case MESSAGE_SEND:
             if (i + 1 + min_payload[i+1] <= len_payload) {
-                memset(transmit_buffer, 0, CONFIG.message_length);
+                memset(transmit_buffer, 0, global_config.message_length);
                 transmit_buffer[0] = ((num_messages++) % 128) | 128;
                 memcpy(transmit_buffer + 1, min_payload + i + 2, min_payload[i+1]);
                 force_transmit = true;
@@ -278,7 +285,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             if (remaining < 2) { break_out = true; break; }
             memcpy(&vi, min_payload + i + 1, 2);
             if (vi >= 0 && vi <= 3) {
-                CONFIG.mode = vi;
+                global_config.mode = vi;
             }
             i += 3;
             break;
@@ -288,7 +295,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             if (vf >= 420 && vf <= 450) {
                 SerialUSB.println("Set frequency");
                 s6c.rf24->setFrequency(vf);
-                CONFIG.frequency = vf;
+                global_config.frequency = vf;
             }
             i += 5;
             break;
@@ -298,7 +305,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             if (vi >= 0 && vi <= 3) {
                 SerialUSB.println("Set datarate");
                 s6c.rf24->setDatarate(vi);
-                CONFIG.datarate = vi;
+                global_config.datarate = vi;
                 setTDMAlengths();
             }
             i += 3;
@@ -308,7 +315,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             memcpy(&vi, min_payload + i + 1, 2);
             if (vi >= 0 && vi <= 3600) {
                 SerialUSB.println("Set interval");
-                CONFIG.interval = vi;
+                global_config.interval = vi;
             }
             i += 3;
             break;
@@ -319,7 +326,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
                 vi++;
                 SerialUSB.println("Set message length");
                 s6c.rf24->setMessageLength(vi + NPAR);
-                CONFIG.message_length = vi;
+                global_config.message_length = vi;
         		setTDMAlengths();
             }
             i += 3;
@@ -329,16 +336,16 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             memcpy(&vi, min_payload + i + 1, 2);
             if (vi >= 0 && vi <= 1) {
                 SerialUSB.println("Set continuous mode");
-                SerialUSB.println(CONFIG.transmit_continuous);
+                SerialUSB.println(global_config.transmit_continuous);
                 SerialUSB.println(vi);
-                CONFIG.transmit_continuous = vi;
-        		CONFIG.tdma_enabled = !CONFIG.transmit_continuous; // disable TDMA if set to continuous transmission, enable if not continuous
+                global_config.transmit_continuous = vi;
+        		global_config.tdma_enabled = !global_config.transmit_continuous; // disable TDMA if set to continuous transmission, enable if not continuous
             }
             i += 3;
             break;
         case MESSAGE_QUICKSAVE:
-            memcpy(saved_config, (void*)&CONFIG, sizeof(struct radio_config));
-            ack_time = millis() + CONFIG.ack_interval;
+            memcpy(&quicksave_config, (void*)&global_config, sizeof(struct radio_config));
+            quicksave_acktime = millis() + global_config.ack_interval;
             i += 1;
             break;
         case MESSAGE_QUICKLOAD:
@@ -346,12 +353,12 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             i += 1;
             break;
         case MESSAGE_QUICKACK:
-            ack_time = 0;
+            quicksave_acktime = 0;
             i += 1;
             break;
         case MESSAGE_SEND_CONFIG:
             if (i + 1 + min_payload[i+1] <= len_payload) {
-                memset(transmit_buffer, 0, CONFIG.message_length);
+                memset(transmit_buffer, 0, global_config.message_length);
                 transmit_buffer[0] = 128 | min_payload[i+1];
                 memcpy(transmit_buffer + 1, min_payload + i + 2, min_payload[i+1]);
                 force_transmit = true;
@@ -491,14 +498,14 @@ void setup() {
 
     SerialUSB.println("Configuring RF...");
     s6c.configureRF();
-    s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
+    s6c.rf24->setMessageLength(global_config.message_length + NPAR);
     setTDMAlengths();
 
 	uint8_t config_saved = EEPROM.read(LOC_CONFIG);
-	if (config_saved == 13) { // Never forget Judas
+	if (config_saved == SASHA_DEVIL_MAGIC) {
 		SerialUSB.println("Loading config from EEPROM...");
-		read_eeprom_config((uint8_t*) &CONFIG);	
-		memcpy(old_config, &CONFIG, sizeof(CONFIG));
+		read_eeprom_config((uint8_t*) &global_config);	
+		memcpy(&last_eeprom_config, &global_config, sizeof(global_config));
 	}
 
     SerialUSB.println("Configured.");
@@ -526,47 +533,47 @@ uint32_t last = 0;
 void loop() {
     updateTDMA();
 
-    if (ack_time > 0 && millis() > ack_time) {
+    if (quicksave_acktime > 0 && millis() > quicksave_acktime) {
         restore_saved_config();
     }
-    if (CONFIG.mode & MODE_TRANSMITTING) {
-        if ((CONFIG.transmit_continuous && (millis() - last_transmission_time >= CONFIG.interval)) || force_transmit) {
+    if (global_config.mode & MODE_TRANSMITTING) {
+        if ((global_config.transmit_continuous && (millis() - last_transmission_time >= global_config.interval)) || force_transmit) {
             if (validTDMAsend()) {
                 last_transmission_time = millis();
                 noInterrupts();
-                memcpy(current_transmission, transmit_buffer, CONFIG.message_length);
+                memcpy(current_transmission, transmit_buffer, global_config.message_length);
                 interrupts();
                 s6c.LEDOn();
                 SerialUSB.println("Sending");
                 uint32_t t0 = micros();
-                s6c.encode_and_transmit(current_transmission, CONFIG.message_length);
+                s6c.encode_and_transmit(current_transmission, global_config.message_length);
                 SerialUSB.println(((float)(micros()-t0))/1000.);
                 force_transmit = false;
                 s6c.LEDOff();
             }
         }
     }
-    if (CONFIG.mode & MODE_RECEIVING) {
-        uint8_t rx = s6c.tryToRX(receive_buffer, CONFIG.message_length);
+    if (global_config.mode & MODE_RECEIVING) {
+        uint8_t rx = s6c.tryToRX(receive_buffer, global_config.message_length);
         if (rx == 3 || rx == 1) {
             s6c.LEDOn();
             if (schedule_config) {
                 schedule_config = false;
                 force_transmit = true;
-                last_transmission_time = millis() - 2*CONFIG.interval;
+                last_transmission_time = millis() - 2*global_config.interval;
                 return;
             }
             if (receive_buffer[0] & 128) {
                 receive_buffer[0] &= ~128U;
                 SerialUSB.println("it's a config message!");
-                min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], CONFIG.message_length - 1), 2);
+                min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], global_config.message_length - 1), 2);
             }
             receive_buffer[0] = s6c.getRSSI();
             receive_buffer[0] &= ~1U;
             receive_buffer[0] |= (rx == 3);
             for (int k=0; k<4; k++) SerialUSB.println();
             /*int k = 0;
-            for (; k<CONFIG.message_length; k++) {
+            for (; k<global_config.message_length; k++) {
                 SerialUSB.print((char)RB_CMD[k]);
             }
             SerialUSB.println();
@@ -574,8 +581,8 @@ void loop() {
             SerialUSB.println(k);
             SerialUSB.println("lesgo");*/
 
-            min_send_frame(&min_ctx_usb, 3, (uint8_t*)(receive_buffer), CONFIG.message_length);
-            min_send_frame(&min_ctx_header, 3, (uint8_t*)(receive_buffer), CONFIG.message_length);
+            min_send_frame(&min_ctx_usb, 3, (uint8_t*)(receive_buffer), global_config.message_length);
+            min_send_frame(&min_ctx_header, 3, (uint8_t*)(receive_buffer), global_config.message_length);
 
             SerialUSB.println("Got message!");
             s6c.LEDOff();
