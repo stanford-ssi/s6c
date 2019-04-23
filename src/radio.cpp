@@ -149,7 +149,7 @@ void updateTDMA(){
     // slot rollover
     if(new_slot_time > slot_length_us){
         new_slot_time -= slot_length_us;
-        slot_start_us = now - new_epoch_time;
+        slot_start_us = now - new_slot_time;
         epoch_slot++;
     }
 
