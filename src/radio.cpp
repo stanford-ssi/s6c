@@ -45,16 +45,16 @@ void SERCOM1_Handler()
 }
 
 struct radio_config {
-        int mode = 0b11;
-        float frequency = 433.5;
-        bool transmit_continuous = 0;
-        int datarate = 0;
-        unsigned int interval = 1000;
-        unsigned int message_length = 20;
-        unsigned int ack_interval = 60000;
+    int mode = 0b11;
+    float frequency = 433.5;
+    bool transmit_continuous = 0;
+    int datarate = 0;
+    unsigned int interval = 1000;
+    unsigned int message_length = 20;
+    unsigned int ack_interval = 60000;
     bool tdma_enabled = 1;
     uint8_t epoch_slots = 4;
-    uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
+    uint32_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 } CONFIG;
 
 char saved_config[sizeof(struct radio_config)];
@@ -478,19 +478,19 @@ void loop() {
     }
     if (CONFIG.mode & MODE_TRANSMITTING) {
         if ((CONFIG.transmit_continuous && (millis() - last_transmission_time >= CONFIG.interval)) || force_transmit) {
-      if(validTDMAsend()){
-              last_transmission_time = millis();
-              noInterrupts();
-              memcpy(current_transmission, transmit_buffer, CONFIG.message_length);
-              interrupts();
-              s6c.LEDOn();
-              SerialUSB.println("Sending");
-              uint32_t t0 = micros();
-              s6c.encode_and_transmit(current_transmission, CONFIG.message_length);
-              SerialUSB.println(((float)(micros()-t0))/1000.);
-              force_transmit = false;
-              s6c.LEDOff();
-      }
+            if (validTDMAsend()) {
+                last_transmission_time = millis();
+                noInterrupts();
+                memcpy(current_transmission, transmit_buffer, CONFIG.message_length);
+                interrupts();
+                s6c.LEDOn();
+                SerialUSB.println("Sending");
+                uint32_t t0 = micros();
+                s6c.encode_and_transmit(current_transmission, CONFIG.message_length);
+                SerialUSB.println(((float)(micros()-t0))/1000.);
+                force_transmit = false;
+                s6c.LEDOff();
+            }
         }
     }
     if (CONFIG.mode & MODE_RECEIVING) {
