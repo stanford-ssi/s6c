@@ -11,7 +11,12 @@
 #define MODE_RECEIVING 1
 #define MODE_TRANSMITTING 2
 
+/* TODO: replace with planned smart-blah-blah-mmap-y buffer system. */
 #define BUFFER_SIZE 256
+char transmit_buffer[BUFFER_SIZE];
+char receive_buffer[BUFFER_SIZE];
+char current_transmission[BUFFER_SIZE];
+
 
 #define REV_MAJOR 2
 #define REV_MINOR 0
@@ -33,14 +38,6 @@ void SERCOM1_Handler()
   SerialHeader.IrqHandler();
 }
 
-/* Configuration
- * -------------
- *   mode: transmit and/or receive
- *   frequency: frequency in Hz
- *   transmit_continuous: if true, resend last message, even if nothing new
- *      was received.
- */
-
 enum radio_config_datarate {
     // in BITS per second!
     DATARATE_500_BPS   = 0,
@@ -55,8 +52,8 @@ enum radio_config_datarate {
 };
 
 struct radio_config {
-    int mode = 0b11;
-    float frequency = 433.5;
+    int mode = MODE_RECEIVING | MODE_TRANSMITTING;
+    float frequency = 433.5; // MHz "Lesson: never comment your code" -- Joank
     bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
     enum radio_config_datarate datarate = DATARATE_500_BPS;
     unsigned int interval = 1000;
@@ -74,11 +71,6 @@ uint32_t quicksave_acktime = 0;
 
 
 
-
-/* TODO: replace with planned smart-blah-blah-mmap-y buffer system. */
-char transmit_buffer[BUFFER_SIZE];
-char receive_buffer[BUFFER_SIZE];
-char current_transmission[BUFFER_SIZE];
 
 uint32_t last_transmission_time = 0;
 bool force_transmit = false;
