@@ -185,7 +185,8 @@ unsigned long validTDMAsend(){
 // COMPUTES POSITIVE DISTANCE BETWEEN TWO TIMESTAMPS
 unsigned long dif_micros(unsigned long start, unsigned long end){
   if(end > start) return end - start;
-  else return end + (-1 - start); // compute how far start was from rollover, add to how far end is past rollover
+  else return end + ((-1 - start) + 1); // compute how far start was from rollover, add to how far end is past rollover
+       ://github.com/stanford-ssi/s6c
 }
 
 void restore_saved_config() {
