@@ -57,6 +57,8 @@ struct radio_config {
     uint32_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 } CONFIG;
 
+uint8_t old_config[sizeof(CONFIG)];
+
 char saved_config[sizeof(struct radio_config)];
 uint32_t ack_time = 0;
 
@@ -170,7 +172,7 @@ unsigned long validTDMAsend(){
 
     if(!TDMA_sync) return 0; // if TDMA enabled, and not synced, prevent messages from being sent (until synced)
 
-    uint16_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
+    uint32_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
 
     if(one_hot_slot & CONFIG.allocated_slots){ // check if currently in a slot allocated to this device
         if(slot_length_us - slot_time_us > msg_length_us + TDMA_MSG_MARGIN_US){ // check if enough time left in this slot to send a message
@@ -345,42 +347,39 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             i += 1;
             break;
 
-    case MESSAGE_READ_HWID:
-    {
-      uint16_t hwid = s6c.getHWID();
+        case MESSAGE_READ_HWID:
+			{
+			uint16_t hwid = s6c.getHWID();
 
-      switch(port) {
-        case 0: SerialUSB.println(hwid, HEX); break;
-        case 1: SerialHeader.println(hwid, HEX); break;
-        default: break;// command initiated over radio; ignore
-      }
+			switch(port) {
+				case 0: SerialUSB.println(hwid, HEX); break;
+				case 1: SerialHeader.println(hwid, HEX); break;
+				default: break;// command initiated over radio; ignore
+			}
+			break;
+			}
+    	case MESSAGE_SET_HWID:
+ 	        if (remaining < 2) { break_out = true; break; }
+        	s6c.setHWID(((uint16_t)(min_payload[i+1]) << 8) | min_payload[i+2]);
+        	SerialUSB.println("Setting HWID");
+        	i += 3;
+        	break;
 
-      break;
-    }
-    case MESSAGE_SET_HWID:
-      if (remaining < 2) { break_out = true; break; }
-      s6c.setHWID(((uint16_t)(min_payload[i+1]) << 8) | min_payload[i+2]);
-      SerialUSB.println("Setting HWID");
-      i += 3;
-      break;
+    	case MESSAGE_CLEAR_HWID_FUSE: // don't do it!
+        	s6c.clearHWIDfuse();
+        	SerialUSB.println("Clearing HWID fuse");
+        	break;
 
-    case MESSAGE_CLEAR_HWID_FUSE: // don't do it!
-      s6c.clearHWIDfuse();
-      SerialUSB.println("Clearing HWID fuse");
-      break;
-
-    case MESSAGE_TDMA_SYNC:
-      if (remaining < 4) { break_out = true; break; }
-      memcpy(&vl, min_payload + i + 1, 4);
-      resyncTDMA(vl);
-      break;
-
-
-        default:
-            break_out = true;
-            break;
-        }
-        if (break_out) break;
+    	case MESSAGE_TDMA_SYNC:
+        	if (remaining < 4) { break_out = true; break; }
+        	memcpy(&vl, min_payload + i + 1, 4);
+        	resyncTDMA(vl);
+        	break;
+    	default:
+        	break_out = true;
+        	break;
+    	}
+    	if (break_out) break;
     }
 
     SerialUSB.print("MIN frame with ID ");
@@ -425,6 +424,30 @@ void TC3_Handler() {
     }
 }
 
+void read_eeprom_config(uint8_t *out) {
+	for (int i=0; i<(sizeof(CONFIG)); i++) {
+		out[i] = EEPROM.read(LOC_CONFIG + 1 + i);
+	}
+}
+
+void maybe_save_config() {
+	uint8_t *new_config = (uint8_t*)&CONFIG;
+	bool should_save = false;
+	for (int i=0; i<(sizeof(CONFIG)); i++) {
+		if (new_config[i] != old_config[i]) {
+			should_save = true;
+		}
+	}
+	if (should_save) {
+		SerialUSB.println("Saving new config to EEPROM!\n");
+		for (int i=0; i<(sizeof(CONFIG)); i++) {
+			EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
+		}
+		EEPROM.commit();
+		memcpy(old_config, new_config, sizeof(CONFIG));
+	}
+}
+
 void setup() {
     s6c.configureLED();
     s6c.blinkStatus(REV_MAJOR);
@@ -444,6 +467,14 @@ void setup() {
     s6c.configureRF();
     s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
     setTDMAlengths();
+
+	uint8_t config_saved = EEPROM.read(LOC_CONFIG);
+	if (config_saved == 13) { // Never forget Judas
+		SerialUSB.println("loading config from EEPROM!\n");
+		read_eeprom_config((uint8_t*)&CONFIG);	
+		memcpy(old_config, &CONFIG, sizeof(CONFIG));
+	}
+
     SerialUSB.println("Configured!!!!!");
 
     min_init_context(&min_ctx_usb, 0);
@@ -458,7 +489,7 @@ void setup() {
     delay(100);
     s6c.LEDOff(true);
 
-
+	maybe_save_config();
 }
 
 char DATA[] = "Desperta ferro! Desperta ferro! Sant Jordi! Sant Jordi! Arago! Arago!";

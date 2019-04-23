@@ -42,6 +42,8 @@
 #define LOC_HWID_MSB 1
 #define LOC_HWID_LSB 2
 
+#define LOC_CONFIG 10
+
 /*
 S6C GFSK Library
 This library provides an abstraction for the S6B hardware developed by SSI.
