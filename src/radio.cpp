@@ -149,7 +149,7 @@ void updateTDMA(){
     // slot rollover
     if(new_slot_time > slot_length_us){
         new_slot_time -= slot_length_us;
-        slot_start_us = now - new_epoch_time;
+        slot_start_us = now - new_slot_time;
         epoch_slot++;
     }
 
@@ -185,7 +185,7 @@ unsigned long validTDMAsend(){
 // COMPUTES POSITIVE DISTANCE BETWEEN TWO TIMESTAMPS
 unsigned long dif_micros(unsigned long start, unsigned long end){
   if(end > start) return end - start;
-  else return end + (-1 - start); // compute how far start was from rollover, add to how far end is past rollover
+  else return end + ((-1 - start) + 1); // compute how far start was from rollover, add to how far end is past rollover
 }
 
 void restore_saved_config() {
