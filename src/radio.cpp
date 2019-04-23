@@ -17,30 +17,14 @@
 #define REV_MINOR 0
 
 #define USB_SERIAL_BAUD 115200
-#define UART_SERIAL_BAUD 9600
-
-#define SASHA_DEVIL_MAGIC 13
-
-/* Configuration
- * -------------
- *   mode: transmit and/or receive
- *   frequency: frequency in Hz
- *   transmit_continuous: if true, resend last message, even if nothing new
- *      was received.
- *   datarate: one of
- *      - 0: 500 bps = 62.5 B/s
- *      - 1: 5 kbps = 625 B/s
- *      - 2: 10 kbps = 2.5 kB/s
- *     not tested:
- *      - 3: 50 kbps = 6.25 kB/s
- *      - 4: 100 kbps = 12.5 kB/s
- *      - 5: 250 kbps = 31.25 kB/s
- *      - 6: 500 kbps = 62.5 kB/s
- *      - 7: 1000 kbps = 125 kB/s
- */
-
+#define HEADER_SERIAL_BAUD 9600
 #define HEADER_TX 10
 #define HEADER_RX 11
+
+
+// If this magic number is written into location 0 in EEPROM, then we assume
+// that a valid config is saved to EEPROM.
+#define SASHA_DEVIL_MAGIC 13
 
 Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
 
@@ -49,11 +33,32 @@ void SERCOM1_Handler()
   SerialHeader.IrqHandler();
 }
 
+/* Configuration
+ * -------------
+ *   mode: transmit and/or receive
+ *   frequency: frequency in Hz
+ *   transmit_continuous: if true, resend last message, even if nothing new
+ *      was received.
+ */
+
+enum radio_config_datarate {
+    // in BITS per second!
+    DATARATE_500_BPS   = 0,
+    DATARATE_5_KBPS    = 1,
+    DATARATE_10_KBPS   = 2,
+    // the ones below are NOT tested!
+    DATARATE_50_KBPS   = 3,
+    DATARATE_100_KBPS  = 4,
+    DATARATE_250_KBPS  = 5,
+    DATARATE_500_KBPS  = 6,
+    DATARATE_1000_KBPS = 7
+};
+
 struct radio_config {
     int mode = 0b11;
     float frequency = 433.5;
-    bool transmit_continuous = 1;
-    int datarate = 0;
+    bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
+    enum radio_config_datarate datarate = DATARATE_500_BPS;
     unsigned int interval = 1000;
     unsigned int message_length = 20;
     unsigned int ack_interval = 60000;
@@ -305,7 +310,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
             if (vi >= 0 && vi <= 3) {
                 SerialUSB.println("Set datarate");
                 s6c.rf24->setDatarate(vi);
-                global_config.datarate = vi;
+                global_config.datarate = (enum radio_config_datarate) vi;
                 setTDMAlengths();
             }
             i += 3;
@@ -492,7 +497,7 @@ void setup() {
     SerialUSB.setTimeout(1);
     SerialUSB.println("Starting...");
 
-    SerialHeader.begin(UART_SERIAL_BAUD);
+    SerialHeader.begin(HEADER_SERIAL_BAUD);
     pinPeripheral(HEADER_RX, PIO_SERCOM);
     pinPeripheral(HEADER_TX, PIO_SERCOM);
 
