@@ -230,6 +230,23 @@ void restore_saved_config() {
     quicksave_acktime = 0;
 }
 
+
+
+
+
+
+
+
+/* ************************************************************************* */
+/* MIN ********************************************************************* */
+/* ************************************************************************* */
+
+int num_messages = 0;
+bool schedule_config = false;
+
+void min_tx_start(uint8_t port) {}
+void min_tx_finished(uint8_t port) {}
+
 uint16_t min_tx_space(uint8_t port) {
     uint16_t n = 1;
     switch(port) {
@@ -251,9 +268,6 @@ void min_tx_byte(uint8_t port, uint8_t byte) {
 uint32_t min_time_ms(void) {
     return millis();
 }
-
-int num_messages = 0;
-bool schedule_config = false;
 
 void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_payload, uint8_t port) {
     if (len_payload == 0) {
@@ -421,21 +435,18 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
     SerialUSB.println(millis());
 }
 
-void min_tx_start(uint8_t port) {}
-void min_tx_finished(uint8_t port) {
-   /* switch(port) {
-    case 0: SerialUSB.flush();
-    case 1: SerialHeader.flush();
-    }*/
-}
 
-char serial_buffer_usb[32];
-char serial_buffer_header[32];
+
+
+
+
 
 /* Timer to read from UART
  * Called "frequently"...
  */
 void TC3_Handler() {
+    char serial_buffer_usb[32];
+    char serial_buffer_header[32];
     if (TC3->COUNT16.INTFLAG.bit.OVF && TC3->COUNT16.INTENSET.bit.OVF) {
         int available = SerialUSB.available();
         if (available > 0) {
@@ -454,7 +465,6 @@ void TC3_Handler() {
         } else {
             min_poll(&min_ctx_header, 0, 0);
         }
-        //SerialUSB.println(micros());
         REG_TC3_INTFLAG = TC_INTFLAG_OVF;         // Clear the OVF interrupt flag
     }
 }
