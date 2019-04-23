@@ -7,15 +7,18 @@
 
 #define NO_TRANSPORT_PROTOCOL
 #include "min.h"
-
-#define MODE_RECEIVING 1
-#define MODE_TRANSMITTING 2
+struct min_context min_ctx_usb;
+struct min_context min_ctx_header;
 
 /* TODO: replace with planned smart-blah-blah-mmap-y buffer system. */
 #define BUFFER_SIZE 256
 char transmit_buffer[BUFFER_SIZE];
 char receive_buffer[BUFFER_SIZE];
 char current_transmission[BUFFER_SIZE];
+
+// If this magic number is written into location 0 in EEPROM, then we assume
+// that a valid config is saved to EEPROM.
+#define SASHA_DEVIL_MAGIC 13
 
 #define REV_MAJOR 2
 #define REV_MINOR 0
@@ -25,16 +28,16 @@ char current_transmission[BUFFER_SIZE];
 #define HEADER_TX_PIN 10
 #define HEADER_RX_PIN 11
 
-// If this magic number is written into location 0 in EEPROM, then we assume
-// that a valid config is saved to EEPROM.
-#define SASHA_DEVIL_MAGIC 13
-
 Uart SerialHeader(&sercom1, HEADER_RX_PIN, HEADER_TX_PIN, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+S6C s6c;
 
 void SERCOM1_Handler()
 {
   SerialHeader.IrqHandler();
 }
+
+#define MODE_RECEIVING 1
+#define MODE_TRANSMITTING 2
 
 enum radio_config_datarate {
     // in BITS per second!
@@ -73,15 +76,11 @@ uint32_t quicksave_acktime = 0;
 uint32_t last_transmission_time = 0;
 bool force_transmit = false;
 
-int recv = 0;
 
-S6C s6c;
+/* ************************************************************************* */
+/* EEPROM ****************************************************************** */
+/* ************************************************************************* */
 
-struct min_context min_ctx_usb;
-struct min_context min_ctx_header;
-
-
-/* Talking to the EEPROM */
 void read_eeprom_config(uint8_t *out) {
 	for (size_t i = 0; i<(sizeof(global_config)); i++) {
 		out[i] = EEPROM.read(LOC_CONFIG + 1 + i);
@@ -90,16 +89,11 @@ void read_eeprom_config(uint8_t *out) {
 
 void maybe_save_config() {
 	uint8_t *new_config = (uint8_t *) &global_config;
-	bool should_save = false;
-	for (size_t i = 0; i<(sizeof(global_config)); i++) {
-		if (new_config[i] != ((uint8_t *) &last_eeprom_config)[i]) {
-			should_save = true;
-		}
-	}
-	if (should_save) {
+    int should_save = memcmp(&last_eeprom_config, new_config, sizeof(struct radio_config));
+	if (should_save != 0) { // "The memcmp() function returns zero if the two strings are identical"
 		SerialUSB.println("Saving new config to EEPROM...\n");
         EEPROM.write(LOC_CONFIG, SASHA_DEVIL_MAGIC);
-		for (size_t i = 0; i<(sizeof(global_config)); i++) {
+		for (size_t i = 0; i<(sizeof(struct radio_config)); i++) {
 			EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
 		}
 		EEPROM.commit();
@@ -108,8 +102,10 @@ void maybe_save_config() {
 }
 
 
-// TDMA
-////////////////////////////////////////////////////
+/* ************************************************************************* */
+/* TDMA ******************************************************************** */
+/* ************************************************************************* */
+
 const unsigned long bits_per_second[] = {500, 5000, 10000, 50000, 100000, 250000, 500000, 1000000};
 const unsigned long us_per_byte[] = {16000, 1600, 800, 160, 80, 32, 16, 8};
 const unsigned long TDMA_SLOT_MARGIN_US = 5000; // how much larger is a slot than the message within it
@@ -220,12 +216,17 @@ unsigned long dif_micros(unsigned long start, unsigned long end){
   else return end + ((-1 - start) + 1); // compute how far start was from rollover, add to how far end is past rollover
 }
 
+
+
+
+
+
 void restore_saved_config() {
     memcpy(&global_config, (void*) &quicksave_config, sizeof(struct radio_config));
     s6c.rf24->setFrequency(global_config.frequency);
     s6c.rf24->setDatarate(global_config.datarate);
     s6c.rf24->setMessageLength(global_config.message_length + NPAR);
-  setTDMAlengths();
+    setTDMAlengths();
     quicksave_acktime = 0;
 }
 
@@ -418,7 +419,6 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
     SerialUSB.print(min_id);
     SerialUSB.print(" received at ");
     SerialUSB.println(millis());
-    recv++;
 }
 
 void min_tx_start(uint8_t port) {}
