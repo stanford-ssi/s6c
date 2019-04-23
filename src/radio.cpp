@@ -78,6 +78,31 @@ struct min_context min_ctx_usb;
 struct min_context min_ctx_header;
 
 
+void read_eeprom_config(uint8_t *out) {
+	for (int i=0; i<(sizeof(CONFIG)); i++) {
+		out[i] = EEPROM.read(LOC_CONFIG + 1 + i);
+	}
+}
+
+void maybe_save_config() {
+	uint8_t *new_config = (uint8_t*)&CONFIG;
+	bool should_save = false;
+	for (int i=0; i<(sizeof(CONFIG)); i++) {
+		if (new_config[i] != old_config[i]) {
+			should_save = true;
+		}
+	}
+	if (should_save) {
+		SerialUSB.println("Saving new config to EEPROM!\n");
+		for (int i=0; i<(sizeof(CONFIG)); i++) {
+			EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
+		}
+		EEPROM.commit();
+		memcpy(old_config, new_config, sizeof(CONFIG));
+	}
+}
+
+
 // TDMA
 ////////////////////////////////////////////////////
 const unsigned long bits_per_second[] = {500, 5000, 10000, 50000, 100000, 250000, 500000, 1000000};
@@ -382,6 +407,8 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
     	if (break_out) break;
     }
 
+	maybe_save_config();
+
     SerialUSB.print("MIN frame with ID ");
     SerialUSB.print(min_id);
     SerialUSB.print(" received at ");
@@ -422,30 +449,6 @@ void TC3_Handler() {
         //SerialUSB.println(micros());
         REG_TC3_INTFLAG = TC_INTFLAG_OVF;         // Clear the OVF interrupt flag
     }
-}
-
-void read_eeprom_config(uint8_t *out) {
-	for (int i=0; i<(sizeof(CONFIG)); i++) {
-		out[i] = EEPROM.read(LOC_CONFIG + 1 + i);
-	}
-}
-
-void maybe_save_config() {
-	uint8_t *new_config = (uint8_t*)&CONFIG;
-	bool should_save = false;
-	for (int i=0; i<(sizeof(CONFIG)); i++) {
-		if (new_config[i] != old_config[i]) {
-			should_save = true;
-		}
-	}
-	if (should_save) {
-		SerialUSB.println("Saving new config to EEPROM!\n");
-		for (int i=0; i<(sizeof(CONFIG)); i++) {
-			EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
-		}
-		EEPROM.commit();
-		memcpy(old_config, new_config, sizeof(CONFIG));
-	}
 }
 
 void setup() {
