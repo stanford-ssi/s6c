@@ -16,6 +16,9 @@
 #define REV_MAJOR 2
 #define REV_MINOR 0
 
+#define USB_SERIAL_BAUD 115200
+#define UART_SERIAL_BAUD 9600
+
 /* Configuration
  * -------------
  *   mode: transmit and/or receive
@@ -47,12 +50,12 @@ void SERCOM1_Handler()
 struct radio_config {
     int mode = 0b11;
     float frequency = 433.5;
-    bool transmit_continuous = 0;
+    bool transmit_continuous = 1;
     int datarate = 0;
     unsigned int interval = 1000;
     unsigned int message_length = 20;
     unsigned int ack_interval = 60000;
-    bool tdma_enabled = 1;
+    bool tdma_enabled = 0;
     uint8_t epoch_slots = 4;
     uint32_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 } CONFIG;
@@ -427,6 +430,9 @@ void min_tx_finished(uint8_t port) {
 char serial_buffer_usb[32];
 char serial_buffer_header[32];
 
+/* Timer to read from UART
+ * Called "frequently"...
+ */
 void TC3_Handler() {
     if (TC3->COUNT16.INTFLAG.bit.OVF && TC3->COUNT16.INTENSET.bit.OVF) {
         int available = SerialUSB.available();
@@ -451,6 +457,22 @@ void TC3_Handler() {
     }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+/* SETUP
+ *
+ */
+
 void setup() {
     s6c.configureLED();
     s6c.blinkStatus(REV_MAJOR);
@@ -458,37 +480,39 @@ void setup() {
     s6c.blinkStatus(REV_MINOR);
     s6c.LEDOn(true);
     delay(1000);
-    SerialUSB.begin(115200);
+
+    SerialUSB.begin(USB_SERIAL_BAUD);
     SerialUSB.setTimeout(1);
     SerialUSB.println("Starting...");
-    SerialUSB.println("hullo s6c");
 
-    SerialHeader.begin(9600);
+    SerialHeader.begin(UART_SERIAL_BAUD);
     pinPeripheral(HEADER_RX, PIO_SERCOM);
     pinPeripheral(HEADER_TX, PIO_SERCOM);
 
+    SerialUSB.println("Configuring RF...");
     s6c.configureRF();
     s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
     setTDMAlengths();
 
 	uint8_t config_saved = EEPROM.read(LOC_CONFIG);
 	if (config_saved == 13) { // Never forget Judas
-		SerialUSB.println("loading config from EEPROM!\n");
-		read_eeprom_config((uint8_t*)&CONFIG);	
+		SerialUSB.println("Loading config from EEPROM...");
+		read_eeprom_config((uint8_t*) &CONFIG);	
 		memcpy(old_config, &CONFIG, sizeof(CONFIG));
 	}
 
-    SerialUSB.println("Configured!!!!!");
+    SerialUSB.println("Configured.");
 
     min_init_context(&min_ctx_usb, 0);
     min_init_context(&min_ctx_header, 1);
 
-    pinMode(PIN_ARM1,OUTPUT);
-    pinMode(PIN_ARM2,OUTPUT);
-    pinMode(PIN_ARM3,OUTPUT);
-    pinMode(PIN_ARM4,OUTPUT);
+    // TODO: This really shouldn't be in radio.cpp?
+    pinMode(PIN_ARM1, OUTPUT);
+    pinMode(PIN_ARM2, OUTPUT);
+    pinMode(PIN_ARM3, OUTPUT);
+    pinMode(PIN_ARM4, OUTPUT);
 
-    setup_timer();
+    setup_timer(); // TC3_Handler related
     delay(100);
     s6c.LEDOff(true);
 
@@ -500,11 +524,6 @@ uint8_t RB_CMD[32] = {0};
 uint32_t last = 0;
 
 void loop() {
-    /*if (millis() - last > 1000) {
-        min_queue_frame(&min_ctx_usb, 4, (uint8_t*)("got it fam"), 10);
-        last = millis();
-    }*/
-
     updateTDMA();
 
     if (ack_time > 0 && millis() > ack_time) {
