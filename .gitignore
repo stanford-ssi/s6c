@@ -9,3 +9,6 @@ commandCOM10
 commandCOM4
 commandCOM6
 commandCOM7
+*.sw[p]
+.DS_Store
+__pycache__/
