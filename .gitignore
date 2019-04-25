@@ -3,3 +3,6 @@
 .piolibdeps
 .clang_complete
 .gcc-flags.json
+commandCOM11
+data.txt
+__pycache__/min.cpython-37.pyc
