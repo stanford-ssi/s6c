@@ -54,8 +54,8 @@ enum radio_config_datarate {
 
 struct radio_config {
   int mode = MODE_RECEIVING | MODE_TRANSMITTING;
-  float frequency = 434.; // MHz "Lesson: never comment your code" -- Joank
-  bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
+  float frequency = 434.5; // MHz "Lesson: never comment your code" -- Joank
+  bool transmit_continuous = 0; // if 1, resend last msg even if nothing new recvd
   enum radio_config_datarate datarate = DATARATE_500_BPS;
   unsigned int interval = 1000;
   unsigned int message_length = 20;
@@ -69,7 +69,6 @@ struct radio_config global_config;      // global config
 struct radio_config last_eeprom_config; // last-EEPROM-written config
 struct radio_config quicksave_config;   // Joank
 uint32_t quicksave_acktime = 0;
-
 
 
 
@@ -128,10 +127,17 @@ unsigned long slot_length_us; // size of each slot, in microseconds - this equal
 unsigned long epoch_length_us; // length of a TDMA epoch, in microseconds
 bool TDMA_sync = 0; // whether or not the device is properly TDMA synced
 
+uint32_t epoch_t0 = 0;
+
+uint32_t time_last_sync = 0;
+uint32_t MAX_UNSYNC = 10000;
+
 void setTDMAlengths(){
   msg_length_bytes = PREAMBLE_LENGTH + NUM_SYNC_WORDS + global_config.message_length +    NPAR;
   msg_length_us = msg_length_bytes * us_per_byte[global_config.datarate];
+	msg_length_us = 575000;
   slot_length_us = msg_length_us + TDMA_SLOT_MARGIN_US;
+	slot_length_us = 1000000;
   epoch_length_us = slot_length_us * global_config.epoch_slots;
 
   TDMA_sync = 0; // desync TDMA, preventing transmission until resynced
@@ -144,6 +150,7 @@ void setTDMAlengths(){
 
 // TODO: REMOVE, NOT USED
 void resyncTDMA(unsigned long new_epoch_time){
+	return;
 
   unsigned long mutable_new_epoch_time = new_epoch_time;
 
@@ -176,17 +183,35 @@ void updateTDMA(){
   unsigned long new_epoch_time = dif_micros(epoch_start_us, now);
   unsigned long new_slot_time = dif_micros(slot_start_us, now);
 
+	/*
   // slot rollover
   if(new_slot_time > slot_length_us){
     new_slot_time -= slot_length_us;
     slot_start_us = now - new_slot_time;
+		SerialUSB.print("new slot ");
+		SerialUSB.print(epoch_slot);
+		SerialUSB.print(" ");
+		SerialUSB.println(global_config.epoch_slots);
+		SerialUSB.print(micros());
+		SerialUSB.print(" ");
+		SerialUSB.print(epoch_start_us);
+		SerialUSB.print(" ");
+		SerialUSB.print(slot_start_us);
+		SerialUSB.println();
+		SerialUSB.print(epoch_time_us);
+		SerialUSB.print(" ");
+		SerialUSB.println(slot_time_us);
+		//SerialUSB.println(slot_start_us);
+		//SerialUSB.println(slot_length_us);
     epoch_slot++;
-  }
+  }*/
 
   // epoch rollover
   if(new_epoch_time > epoch_length_us){
     new_epoch_time -= epoch_length_us;
     epoch_start_us = now - new_epoch_time;
+		slot_start_us = epoch_start_us; // yay fixing bad clocks
+		new_slot_time = new_epoch_time;
     epoch_slot = 0;
   }
 
@@ -200,13 +225,34 @@ unsigned long validTDMAsend(){
 
   if(!TDMA_sync) return 0; // if TDMA enabled, and not synced, prevent messages from being sent (until synced)
 
+	noInterrupts();
+	uint32_t now = micros();
+	uint32_t dt = dif_micros(epoch_t0, now);
+	dt %= epoch_length_us;
+
+	int cur_slot = dt/slot_length_us;
+	int leftover = slot_length_us - (dt - cur_slot * slot_length_us);
+	if ((1 << cur_slot) & global_config.allocated_slots) {
+		/*SerialUSB.println("we're in the right slot!");
+		SerialUSB.println(cur_slot);
+		SerialUSB.println(leftover);
+		SerialUSB.println(msg_length_us + TDMA_MSG_MARGIN_US);*/
+	}
+	uint32_t out = ((1 << cur_slot) & global_config.allocated_slots) && (leftover > msg_length_us + TDMA_MSG_MARGIN_US);
+
+	interrupts();
+
+	return out;
+	noInterrupts();
   uint16_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
 
   if(one_hot_slot & global_config.allocated_slots){ // check if currently in a slot allocated to this device
     if(slot_length_us - slot_time_us > msg_length_us + TDMA_MSG_MARGIN_US){ // check if enough time left in this slot to send a message
+			interrupts();
       return slot_length_us - (slot_time_us + msg_length_us + TDMA_MSG_MARGIN_US); // return leftover margin in us
     }
   }
+	interrupts();
 
   return 0;
 }
@@ -214,7 +260,7 @@ unsigned long validTDMAsend(){
 // rollover-safe timekeeping function
 // COMPUTES POSITIVE DISTANCE BETWEEN TWO TIMESTAMPS
 unsigned long dif_micros(unsigned long start, unsigned long end){
-  if(end > start) return end - start;
+  if(end >= start) return end - start;
   else return end + ((-1 - start) + 1); // compute how far start was from rollover, add to how far end is past rollover
 }
 
@@ -427,6 +473,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
         memcpy(&vi, min_payload + i + 1, 2);
         SerialUSB.println("Setting slots");
         global_config.allocated_slots = vi;
+				setTDMAlengths();
         i += 3;
         break;
       case MESSAGE_SET_NUM_SLOTS:
@@ -436,6 +483,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 			SerialUSB.println("Setting num slots");
 			global_config.epoch_slots = vi;
 		}
+				setTDMAlengths();
         i += 3;
         break;
       case MESSAGE_TDMA_ENABLE:
@@ -451,10 +499,11 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
 
   maybe_save_config();
 
+	/*
   SerialUSB.print("MIN frame with ID ");
   SerialUSB.print(min_id);
   SerialUSB.print(" received at ");
-  SerialUSB.println(millis());
+  SerialUSB.println(millis());*/
 }
 
 
@@ -467,6 +516,8 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
  * Called "frequently"...
  */
 void TC3_Handler() {
+  //updateTDMA();
+
   char serial_buffer_usb[32];
   char serial_buffer_header[32];
   if (TC3->COUNT16.INTFLAG.bit.OVF && TC3->COUNT16.INTENSET.bit.OVF) {
@@ -559,14 +610,43 @@ uint8_t RB_CMD[32] = {0};
 uint32_t last = 0;
 
 void loop() {
-  updateTDMA();
-
   if (quicksave_acktime > 0 && millis() > quicksave_acktime) {
     restore_saved_config();
   }
   if (global_config.mode & MODE_TRANSMITTING) {
     if ((global_config.transmit_continuous && (millis() - last_transmission_time >= global_config.interval)) || force_transmit) {
+			bool yolo = (!TDMA_sync) && (millis() - time_last_sync > MAX_UNSYNC);
+			if (yolo) {
+				SerialUSB.println("We're asserting our dominance...");
+				int our_slot = 0;
+				for (int i=0; i<global_config.epoch_slots; i++) {
+					if ((global_config.allocated_slots & (1<<i)) == 0) {
+						our_slot++;
+					} else { break; }
+				}
+				if (our_slot == global_config.epoch_slots) {
+					SerialUSB.println("aw come on you didn't give me a slot!");	
+				} else {
+					noInterrupts();
+					uint32_t now = micros();
+					/*epoch_start_us = now - our_slot * slot_length_us;
+					slot_start_us = now + our_slot * slot_length_us;
+					slot_time_us = 0;
+					epoch_time_us = our_slot * slot_length_us;
+					SerialUSB.println("Setting...");
+					SerialUSB.println(epoch_start_us);
+					SerialUSB.println(epoch_time_us);
+					SerialUSB.println(slot_start_us);
+					SerialUSB.println(slot_time_us);
+					SerialUSB.println("k");*/
+					epoch_t0 = now - our_slot * slot_length_us;
+					TDMA_sync = 1;
+					interrupts();
+					time_last_sync = millis();
+				}
+			}
       if (validTDMAsend()) {
+				time_last_sync = millis();
         last_transmission_time = millis();
         noInterrupts();
 				transmit_buffer[0] = (transmit_buffer[0] & 0b10000000) | epoch_slot;
@@ -587,24 +667,32 @@ void loop() {
     if (rx == 3 || rx == 1) {
 		  uint32_t recv_time = micros();
 	  	uint8_t slot = receive_buffer[0] & 127;
-	  	Serial.print("received message from slot ");
-	  	Serial.print(slot);
+	  	SerialUSB.print("received message from slot ");
+	  	SerialUSB.print(slot);
 			if (slot & global_config.allocated_slots) {
-				Serial.println("<confused two spidermen pointing at each other>");
-				Serial.println("<screeches>");
+				SerialUSB.println("<confused two spidermen pointing at each other>");
+				SerialUSB.println("<screeches>");
 			}
-			uint32_t duration_us = 575000; // lol TODO XXX FIX
+			noInterrupts();
+			uint32_t duration_us = 500000; // lol TODO XXX FIX
+			epoch_t0 = recv_time - (duration_us + slot_length_us * slot);
 			epoch_start_us = recv_time - (duration_us + slot_length_us * slot);
 			slot_start_us = recv_time - duration_us;
 			slot_time_us = duration_us;
 			epoch_time_us = duration_us + slot_length_us * slot;
 
   		TDMA_sync = 1;
-			Serial.println("synchronized!");
-			Serial.println(epoch_start_us);
-			Serial.println(slot_start_us);
-			Serial.println(slot_time_us);
-			Serial.println(epoch_time_us);
+			interrupts();
+			SerialUSB.println("synchronized!");
+			SerialUSB.println(epoch_t0);
+			/*SerialUSB.println(epoch_start_us);
+			SerialUSB.println(slot_start_us);
+			SerialUSB.println(slot_time_us);
+			SerialUSB.println(epoch_time_us);*/
+			SerialUSB.println("message...");
+      for (int k=0; k<global_config.message_length; k++) {
+        SerialUSB.print((char)receive_buffer[k]);
+      }
 
       s6c.LEDOn();
       if (schedule_config) {

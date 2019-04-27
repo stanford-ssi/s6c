@@ -60,7 +60,7 @@ def send_command_to_s6c(command):
         print('Unknown command', command[0])
         return
     else:
-        print('Command', command[0], cmds)
+        print('Command', command[0])
 
     # Parse it
     msg.append(cmds[command[0]])
@@ -83,12 +83,12 @@ def send_command_to_s6c(command):
     if fwd:
         cpy = [cmds['send-config'], len(msg)]
         cpy.extend(msg)
-        print('queued forwardedframe', cpy)
+        #print('queued forwardedframe', cpy)
         handler.send_frame(min_id=0x01, payload=bytes(cpy))
 
     if local:
         if fwd: time.sleep(5)
-        print('queued local frame', msg)
+        #print('queued local frame', msg)
         handler.send_frame(min_id=0x01, payload=bytes(msg))
 
 if mode == "tx":
@@ -100,10 +100,22 @@ if mode == "tdma":
     send_command_to_s6c('set-slots %d' % (1 << int(sys.argv[3])))
     send_command_to_s6c('set-mode 3')
     send_command_to_s6c('set-continuous 0')
-    send_command_to_s6c('tdma-enable')
+    #send_command_to_s6c('tdma-enable')
 
 
-listen_for_data_to_uplink(send_command_to_s6c)
+#listen_for_data_to_uplink(send_command_to_s6c)
+
+def periodic_send():
+    time.sleep(5)
+    while True:
+        print('(SENDING cagum deu clavat)')
+        send_command_to_s6c("send cagum deu clavat" + chr(ord('0')+int(sys.argv[3])))
+        time.sleep(0.4)
+
+import threading
+t = threading.Thread(target=periodic_send)
+t.daemon = True
+t.start()
 
 no_min_team()
 

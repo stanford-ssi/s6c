@@ -12,3 +12,6 @@ commandCOM7
 *.sw[p]
 .DS_Store
 __pycache__/
+commandCOM11
+data.txt
+__pycache__/min.cpython-37.pyc
