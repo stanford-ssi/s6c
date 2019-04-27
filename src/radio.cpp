@@ -36,20 +36,20 @@
 //
 // Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
 
-#define HEADER_TX 17
-#define HEADER_RX 8
+#define HEADER_TX 8
+#define HEADER_RX 17
 
-Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_0, UART_TX_PAD_2);
 
 void SERCOM0_Handler()
 {
   SerialHeader.IrqHandler();
 }
 
-void SERCOM1_Handler()
-{
-  SerialHeader.IrqHandler();
-}
+// void SERCOM1_Handler()
+// {
+//   SerialHeader.IrqHandler();
+// }
 
 struct radio_config {
 		int mode = 0b11;
@@ -290,8 +290,8 @@ void setup() {
 	SerialUSB.println("hullo s6c");
 
 	SerialHeader.begin(9600);
-	pinPeripheral(HEADER_RX, PIO_SERCOM);
-	pinPeripheral(HEADER_TX, PIO_SERCOM);
+	//pinPeripheral(HEADER_RX, PIO_SERCOM);
+	//pinPeripheral(HEADER_TX, PIO_SERCOM);
 
 	s6c.configureRF();
 	SerialUSB.println("Configured!!!!!");
@@ -299,10 +299,10 @@ void setup() {
 	min_init_context(&min_ctx_usb, 0);
 	min_init_context(&min_ctx_header, 1);
 
-	pinMode(PIN_ARM1,OUTPUT);
-	pinMode(PIN_ARM2,OUTPUT);
-	pinMode(PIN_ARM3,OUTPUT);
-	pinMode(PIN_ARM4,OUTPUT);
+	// pinMode(PIN_ARM1,OUTPUT);
+	// pinMode(PIN_ARM2,OUTPUT);
+	// pinMode(PIN_ARM3,OUTPUT);
+	// pinMode(PIN_ARM4,OUTPUT);
 
 	setup_timer();
 	delay(1000);
