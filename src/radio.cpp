@@ -54,7 +54,7 @@ enum radio_config_datarate {
 
 struct radio_config {
   int mode = MODE_RECEIVING | MODE_TRANSMITTING;
-  float frequency = 433.5; // MHz "Lesson: never comment your code" -- Joank
+  float frequency = 434.; // MHz "Lesson: never comment your code" -- Joank
   bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
   enum radio_config_datarate datarate = DATARATE_500_BPS;
   unsigned int interval = 1000;
@@ -62,7 +62,7 @@ struct radio_config {
   unsigned int ack_interval = 60000;
   bool tdma_enabled = 0;
   uint8_t epoch_slots = 4;
-  uint32_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
+  uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 };
 
 struct radio_config global_config;      // global config
@@ -141,6 +141,8 @@ void setTDMAlengths(){
 // offset supplied as the new epoch time; give this function the new epoch time
 // and it will figure out which slot it is currently in and when the epoch started
 // enables TDMA_sync, telling the radio it has been properly synced up and can safely transmit
+
+// TODO: REMOVE, NOT USED
 void resyncTDMA(unsigned long new_epoch_time){
 
   unsigned long mutable_new_epoch_time = new_epoch_time;
@@ -198,7 +200,7 @@ unsigned long validTDMAsend(){
 
   if(!TDMA_sync) return 0; // if TDMA enabled, and not synced, prevent messages from being sent (until synced)
 
-  uint32_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
+  uint16_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
 
   if(one_hot_slot & global_config.allocated_slots){ // check if currently in a slot allocated to this device
     if(slot_length_us - slot_time_us > msg_length_us + TDMA_MSG_MARGIN_US){ // check if enough time left in this slot to send a message
@@ -420,6 +422,26 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
         memcpy(&vl, min_payload + i + 1, 4);
         resyncTDMA(vl);
         break;
+      case MESSAGE_SET_SLOTS:
+        if (remaining < 2) { break_out = true; break; }
+        memcpy(&vi, min_payload + i + 1, 2);
+        SerialUSB.println("Setting slots");
+        global_config.allocated_slots = vi;
+        i += 3;
+        break;
+      case MESSAGE_SET_NUM_SLOTS:
+        if (remaining < 2) { break_out = true; break; }
+        memcpy(&vi, min_payload + i + 1, 2);
+		if (vi >= 1 && vi <= 16) {
+			SerialUSB.println("Setting num slots");
+			global_config.epoch_slots = vi;
+		}
+        i += 3;
+        break;
+      case MESSAGE_TDMA_ENABLE:
+		global_config.tdma_enabled = 1;
+		i += 1;
+		break;
       default:
         break_out = true;
         break;
@@ -503,6 +525,7 @@ void setup() {
 
   SerialUSB.println("Configuring RF...");
   s6c.configureRF();
+  s6c.rf24->setFrequency(global_config.frequency);
   s6c.rf24->setMessageLength(global_config.message_length + NPAR);
   setTDMAlengths();
 
@@ -546,6 +569,7 @@ void loop() {
       if (validTDMAsend()) {
         last_transmission_time = millis();
         noInterrupts();
+				transmit_buffer[0] = (transmit_buffer[0] & 0b10000000) | epoch_slot;
         memcpy(current_transmission, transmit_buffer, global_config.message_length);
         interrupts();
         s6c.LEDOn();
@@ -561,6 +585,27 @@ void loop() {
   if (global_config.mode & MODE_RECEIVING) {
     uint8_t rx = s6c.tryToRX(receive_buffer, global_config.message_length);
     if (rx == 3 || rx == 1) {
+		  uint32_t recv_time = micros();
+	  	uint8_t slot = receive_buffer[0] & 127;
+	  	Serial.print("received message from slot ");
+	  	Serial.print(slot);
+			if (slot & global_config.allocated_slots) {
+				Serial.println("<confused two spidermen pointing at each other>");
+				Serial.println("<screeches>");
+			}
+			uint32_t duration_us = 575000; // lol TODO XXX FIX
+			epoch_start_us = recv_time - (duration_us + slot_length_us * slot);
+			slot_start_us = recv_time - duration_us;
+			slot_time_us = duration_us;
+			epoch_time_us = duration_us + slot_length_us * slot;
+
+  		TDMA_sync = 1;
+			Serial.println("synchronized!");
+			Serial.println(epoch_start_us);
+			Serial.println(slot_start_us);
+			Serial.println(slot_time_us);
+			Serial.println(epoch_time_us);
+
       s6c.LEDOn();
       if (schedule_config) {
         schedule_config = false;

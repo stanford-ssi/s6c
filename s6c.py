@@ -28,6 +28,16 @@ def listen_to_s6c():
 
                 on_downlinked_data(frame)
 
+def no_min_team():
+    while True:
+        data = handler._serial_read_all()
+        if data:
+            if type(data) == bytes:
+                sys.stdout.buffer.write(data)
+            else:
+                sys.stdout.write(data)
+            sys.stdout.flush()
+    
 
 def send_command_to_s6c(command):
     # validate command
@@ -85,6 +95,17 @@ if mode == "tx":
     send_command_to_s6c('set-mode 3')
     send_command_to_s6c('set-continuous 1')
 
+if mode == "tdma":
+    send_command_to_s6c('set-num-slots %d' % int(sys.argv[4]))
+    send_command_to_s6c('set-slots %d' % (1 << int(sys.argv[3])))
+    send_command_to_s6c('set-mode 3')
+    send_command_to_s6c('set-continuous 0')
+    send_command_to_s6c('tdma-enable')
+
+
 listen_for_data_to_uplink(send_command_to_s6c)
 
+no_min_team()
+
 listen_to_s6c()
+
