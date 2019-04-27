@@ -31,10 +31,20 @@
  *      - 7: 1000 kbps = 125 kB/s
  */
 
-#define HEADER_TX 10
-#define HEADER_RX 11
+// #define HEADER_TX 10
+// #define HEADER_RX 11
+//
+// Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
 
-Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+#define HEADER_TX 17
+#define HEADER_RX 8
+
+Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+
+void SERCOM0_Handler()
+{
+  SerialHeader.IrqHandler();
+}
 
 void SERCOM1_Handler()
 {
@@ -288,7 +298,7 @@ void setup() {
 
 	min_init_context(&min_ctx_usb, 0);
 	min_init_context(&min_ctx_header, 1);
-	
+
 	pinMode(PIN_ARM1,OUTPUT);
 	pinMode(PIN_ARM2,OUTPUT);
 	pinMode(PIN_ARM3,OUTPUT);
