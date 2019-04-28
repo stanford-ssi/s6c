@@ -16,12 +16,13 @@ def create_downlink_fifo():
     try:
         downlink_fifo = os.open(downlink_filename, os.O_WRONLY | os.O_NONBLOCK)
     except OSError as e:
-        if e.errno == 6:
+        if e.errno == 6 or e.errno == 2:
             print('[MC Interface] Failed to open named pipe; MC is not listening')
         else:
             raise e
 
-    print("[MC Interface] Outputting data to %s" % downlink_filename)
+    if downlink_fifo is not None:
+        print("[MC Interface] Outputting data to %s" % downlink_filename)
 
 
 def on_downlinked_data(frame):
@@ -70,7 +71,7 @@ def uplink_poller():
         line = uplink_file.readline()
 
         if not line:
-            time.sleep(0.5)
+            time.sleep(0.1)
             continue
 
         for listener in uplink_listeners:
