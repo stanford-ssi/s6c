@@ -38,7 +38,7 @@ def create_mock_data():
         sequence_number += 1
         altitude += ascent_rate
 
-        time.sleep(10)
+        time.sleep(1)
 
 
 if __name__ == "__main__":

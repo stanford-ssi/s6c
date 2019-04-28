@@ -28,6 +28,8 @@ def listen_to_s6c():
 
                 on_downlinked_data(frame)
 
+        time.sleep(0.01)
+
 
 def send_command_to_s6c(command):
     # validate command
