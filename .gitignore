@@ -11,3 +11,6 @@ commandCOM17
 commandCOM18
 commandCOM21
 commandCOM22
+command.dev.ttyACM*
+env/**
+opt/**
