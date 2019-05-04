@@ -95,6 +95,7 @@ if mode == "tx":
     send_command_to_s6c('set-continuous 1')
 
 if console_only:
+    print("Running console - type commands here:")
     run_console(listen_to_s6c, send_command_to_s6c)
 else:
     listen_for_data_to_uplink(send_command_to_s6c)
