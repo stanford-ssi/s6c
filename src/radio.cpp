@@ -22,19 +22,44 @@ char current_transmission[BUFFER_SIZE];
 
 #define REV_MAJOR 2
 #define REV_MINOR 0
-
 #define USB_SERIAL_BAUD 115200
 #define HEADER_SERIAL_BAUD 9600
+
+// #define HEADER_TX 10
+// #define HEADER_RX 11
+//
+// Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+
+// NEED MORE ELEGANT SERCOM HANDLER
+
+#if (HWREV == 102)
+#define HEADER_TX 8
+#define HEADER_RX 17
+
+Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_0, UART_TX_PAD_2);
+
+void SERCOM0_Handler()
+{
+  SerialHeader.IrqHandler();
+}
+
+#endif
+
+
+#if (HWREV == 100)
 #define HEADER_TX_PIN 10
 #define HEADER_RX_PIN 11
 
 Uart SerialHeader(&sercom1, HEADER_RX_PIN, HEADER_TX_PIN, SERCOM_RX_PAD_2, UART_TX_PAD_0);
-S6C s6c;
 
 void SERCOM1_Handler()
 {
   SerialHeader.IrqHandler();
 }
+#endif
+
+S6C s6c;
+
 
 #define MODE_RECEIVING 1
 #define MODE_TRANSMITTING 2
@@ -51,6 +76,7 @@ enum radio_config_datarate {
   DATARATE_500_KBPS  = 6,
   DATARATE_1000_KBPS = 7
 };
+
 
 struct radio_config {
   int mode = MODE_RECEIVING | MODE_TRANSMITTING;
@@ -498,8 +524,8 @@ void setup() {
   SerialUSB.println("Starting...");
 
   SerialHeader.begin(HEADER_SERIAL_BAUD);
-  pinPeripheral(HEADER_RX_PIN, PIO_SERCOM);
-  pinPeripheral(HEADER_TX_PIN, PIO_SERCOM);
+  //pinPeripheral(HEADER_RX_PIN, PIO_SERCOM);
+  //pinPeripheral(HEADER_TX_PIN, PIO_SERCOM);
 
   SerialUSB.println("Configuring RF...");
   s6c.configureRF();
@@ -512,6 +538,7 @@ void setup() {
     read_eeprom_config((uint8_t*) &global_config);	
     memcpy(&last_eeprom_config, &global_config, sizeof(global_config));
   }
+
 
   SerialUSB.println("Configured.");
 

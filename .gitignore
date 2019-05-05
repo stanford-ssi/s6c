@@ -1,3 +1,5 @@
+*~
+\#*
 .pio
 .pioenvs
 .piolibdeps
@@ -19,3 +21,4 @@ commandCOM17
 commandCOM21
 commandCOM22
 commandCOM26
+
