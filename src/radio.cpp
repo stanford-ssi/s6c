@@ -83,12 +83,12 @@ struct radio_config {
   float frequency = 433.5; // MHz "Lesson: never comment your code" -- Joank
   bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
   enum radio_config_datarate datarate = DATARATE_500_BPS;
-  unsigned int interval = 1000;
+  unsigned int interval = 2500;
   unsigned int message_length = 20;
   unsigned int ack_interval = 60000;
   bool tdma_enabled = 0;
   uint8_t epoch_slots = 4;
-  uint32_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
+  uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
 };
 
 struct radio_config global_config;      // global config
@@ -224,7 +224,7 @@ unsigned long validTDMAsend(){
 
   if(!TDMA_sync) return 0; // if TDMA enabled, and not synced, prevent messages from being sent (until synced)
 
-  uint32_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
+  uint16_t one_hot_slot = 0b1 << epoch_slot; // one-hot representation of which slot is currently active
 
   if(one_hot_slot & global_config.allocated_slots){ // check if currently in a slot allocated to this device
     if(slot_length_us - slot_time_us > msg_length_us + TDMA_MSG_MARGIN_US){ // check if enough time left in this slot to send a message
@@ -238,7 +238,7 @@ unsigned long validTDMAsend(){
 // rollover-safe timekeeping function
 // COMPUTES POSITIVE DISTANCE BETWEEN TWO TIMESTAMPS
 unsigned long dif_micros(unsigned long start, unsigned long end){
-  if(end > start) return end - start;
+  if(end >= start) return end - start;
   else return end + ((-1 - start) + 1); // compute how far start was from rollover, add to how far end is past rollover
 }
 
@@ -251,7 +251,7 @@ void restore_saved_config() {
   memcpy(&global_config, (void*) &quicksave_config, sizeof(struct radio_config));
   s6c.rf24->setFrequency(global_config.frequency);
   s6c.rf24->setDatarate(global_config.datarate);
-  s6c.rf24->setMessageLength(global_config.message_length + NPAR);
+  s6c.rf24->setMessageLength(global_config.message_length);
   setTDMAlengths();
   quicksave_acktime = 0;
 }
@@ -361,7 +361,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
         if (vi >= 0 && vi <= 234) {
           vi++;
           SerialUSB.println("Set message length");
-          s6c.rf24->setMessageLength(vi + NPAR);
+          s6c.rf24->setMessageLength(vi);
           global_config.message_length = vi;
           setTDMAlengths();
         }
@@ -446,6 +446,27 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
         memcpy(&vl, min_payload + i + 1, 4);
         resyncTDMA(vl);
         break;
+
+      case MESSAGE_TDMA_SET_SLOTS:
+        if (remaining < 2) { break_out = true; break; }
+        memcpy(&vi, min_payload + i + 1, 2);
+        SerialUSB.println("Setting slots");
+        global_config.allocated_slots = vi;
+        i += 3;
+        break;
+      case MESSAGE_TDMA_SET_NUM_SLOTS:
+        if (remaining < 2) { break_out = true; break; }
+        memcpy(&vi, min_payload + i + 1, 2);
+    		if (vi >= 1 && vi <= 16) {
+    			SerialUSB.println("Setting num slots");
+    			global_config.epoch_slots = vi;
+    		}
+        i += 3;
+        break;
+      case MESSAGE_TDMA_ENABLE:
+    		global_config.tdma_enabled = 1;
+    		i += 1;
+    		break;
       default:
         break_out = true;
         break;
@@ -529,13 +550,13 @@ void setup() {
 
   SerialUSB.println("Configuring RF...");
   s6c.configureRF();
-  s6c.rf24->setMessageLength(global_config.message_length + NPAR);
+  s6c.rf24->setMessageLength(global_config.message_length);
   setTDMAlengths();
 
   uint8_t config_saved = EEPROM.read(LOC_CONFIG);
   if (config_saved == SASHA_DEVIL_MAGIC) {
     SerialUSB.println("Loading config from EEPROM...");
-    read_eeprom_config((uint8_t*) &global_config);	
+    read_eeprom_config((uint8_t*) &global_config);
     memcpy(&last_eeprom_config, &global_config, sizeof(global_config));
   }
 
@@ -571,7 +592,15 @@ void loop() {
   if (global_config.mode & MODE_TRANSMITTING) {
     if ((global_config.transmit_continuous && (millis() - last_transmission_time >= global_config.interval)) || force_transmit) {
       if (validTDMAsend()) {
+        unsigned long tx_start = micros();
+        SerialUSB.println(tx_start);
         last_transmission_time = millis();
+
+        if(global_config.transmit_continuous){
+          transmit_buffer[0] = ((num_messages++) % 128) | 128;
+          *(unsigned long*)(transmit_buffer+1) = micros();
+        }
+
         noInterrupts();
         memcpy(current_transmission, transmit_buffer, global_config.message_length);
         interrupts();
@@ -582,6 +611,14 @@ void loop() {
         SerialUSB.println(((float)(micros()-t0))/1000.);
         force_transmit = false;
         s6c.LEDOff();
+        unsigned long tx_end = micros();
+        SerialUSB.println(tx_end);
+        SerialUSB.println(tx_end - tx_start);
+        SerialUSB.println(msg_length_bytes);
+        SerialUSB.println(msg_length_us);
+        SerialUSB.println(slot_length_us);
+        SerialUSB.println(epoch_length_us);
+        SerialUSB.println();
       }
     }
   }

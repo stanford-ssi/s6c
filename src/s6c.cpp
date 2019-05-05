@@ -125,6 +125,10 @@ void S6C::encode_and_transmit(void *msg_data, uint8_t msg_size)
     SerialUSB.print(" ");
   }
   SerialUSB.println();
+
+  unsigned long sendmicros = (unsigned long)frame_data[1] | (unsigned long)frame_data[2] << 8 | (unsigned long)frame_data[3] << 16 | (unsigned long)frame_data[4] << 24;
+
+  SerialUSB.println(sendmicros);
 #endif
 
   //transmit frame (blocking)
