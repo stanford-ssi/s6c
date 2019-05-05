@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include "RH_RF24.h"
 
+#define EEPROM_EMULATION_SIZE 16 // theoretically overrides library to get 16 bytes of EEPROM instead of 1k
+#include "FlashAsEEPROM.h"
+
 //#define MAX_MSG_LENGTH 23
 //#define NPAR 20
 //#define FRAME_SIZE ( MAX_MSG_LENGTH + NPAR )
@@ -33,8 +36,16 @@
 #define PIN_ARM2 9 //SER03 - PA07 - 9
 #define PIN_ARM3 1 //SER22 - PA10 - 1
 #define PIN_ARM4 0 //SER23 - PA11 - 0
+
+// EEPROM locations
+#define LOC_HWIDFUSE 0
+#define LOC_HWID_MSB 1
+#define LOC_HWID_LSB 2
+
+#define LOC_CONFIG 10
+
 /*
-S6B GFSK Library
+S6C GFSK Library
 This library provides an abstraction for the S6B hardware developed by SSI.
 */
 
@@ -42,6 +53,9 @@ class S6C
 {
 public:
   S6C();
+  uint16_t getHWID();
+  void clearHWIDfuse();
+  uint16_t setHWID(uint16_t new_HWID);
   void configureRF();
   void encode_and_transmit(void *msg_data, uint8_t msg_size);
   uint8_t tryToRX(void *msg_data, uint8_t msg_size);
