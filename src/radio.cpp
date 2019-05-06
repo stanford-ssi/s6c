@@ -18,7 +18,7 @@ char current_transmission[BUFFER_SIZE];
 
 // If this magic number is written into location 0 in EEPROM, then we assume
 // that a valid config is saved to EEPROM.
-#define SASHA_DEVIL_MAGIC 13
+#define MAGIC_EEPROM_KEY 13
 
 #define REV_MAJOR 2
 #define REV_MINOR 0
@@ -78,11 +78,13 @@ enum radio_config_datarate {
 };
 
 
+const bool ENABLE_EEPROM_CONFIG = 0; // if 0, disables all behavior relating to saving/loading configuration from EEPROM
+
 struct radio_config {
   int mode = MODE_RECEIVING | MODE_TRANSMITTING;
   float frequency = 433.5; // MHz "Lesson: never comment your code" -- Joank
   bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
-  enum radio_config_datarate datarate = DATARATE_500_BPS;
+  enum radio_config_datarate datarate = DATARATE_5_KBPS;//DATARATE_500_BPS;
   unsigned int interval = 2500;
   unsigned int message_length = 20;
   unsigned int ack_interval = 60000;
@@ -114,16 +116,18 @@ void read_eeprom_config(uint8_t *out) {
 }
 
 void maybe_save_config() {
-  uint8_t *new_config = (uint8_t *) &global_config;
-  int should_save = memcmp(&last_eeprom_config, new_config, sizeof(struct radio_config));
-  if (should_save != 0) { // "The memcmp() function returns zero if the two strings are identical"
-    SerialUSB.println("Saving new config to EEPROM...\n");
-    EEPROM.write(LOC_CONFIG, SASHA_DEVIL_MAGIC);
-    for (size_t i = 0; i<(sizeof(struct radio_config)); i++) {
-      EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
+  if(ENABLE_EEPROM_CONFIG){ // only proceed if EEPROM disabled
+    uint8_t *new_config = (uint8_t *) &global_config;
+    int should_save = memcmp(&last_eeprom_config, new_config, sizeof(struct radio_config));
+    if (should_save != 0) { // "The memcmp() function returns zero if the two strings are identical"
+      SerialUSB.println("Saving new config to EEPROM...\n");
+      EEPROM.write(LOC_CONFIG, MAGIC_EEPROM_KEY);
+      for (size_t i = 0; i<(sizeof(struct radio_config)); i++) {
+        EEPROM.write(LOC_CONFIG + 1 + i, new_config[i]);
+      }
+      EEPROM.commit();
+      memcpy(&last_eeprom_config, new_config, sizeof(global_config));
     }
-    EEPROM.commit();
-    memcpy(&last_eeprom_config, new_config, sizeof(global_config));
   }
 }
 
@@ -245,18 +249,18 @@ unsigned long dif_micros(unsigned long start, unsigned long end){
 
 
 
-
-
-void restore_saved_config() {
-  memcpy(&global_config, (void*) &quicksave_config, sizeof(struct radio_config));
+void apply_global_config() {
   s6c.rf24->setFrequency(global_config.frequency);
   s6c.rf24->setDatarate(global_config.datarate);
   s6c.rf24->setMessageLength(global_config.message_length + NPAR);
   setTDMAlengths();
-  quicksave_acktime = 0;
 }
 
-
+void restore_saved_config() {
+  memcpy(&global_config, (void*) &quicksave_config, sizeof(struct radio_config));
+  apply_global_config();
+  quicksave_acktime = 0;
+}
 
 
 
@@ -550,11 +554,11 @@ void setup() {
 
   SerialUSB.println("Configuring RF...");
   s6c.configureRF();
-  s6c.rf24->setMessageLength(global_config.message_length + NPAR);
+  apply_global_config();
   setTDMAlengths();
 
   uint8_t config_saved = EEPROM.read(LOC_CONFIG);
-  if (config_saved == SASHA_DEVIL_MAGIC) {
+  if (ENABLE_EEPROM_CONFIG && config_saved == MAGIC_EEPROM_KEY) {
     SerialUSB.println("Loading config from EEPROM...");
     read_eeprom_config((uint8_t*) &global_config);
     memcpy(&last_eeprom_config, &global_config, sizeof(global_config));
