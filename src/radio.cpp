@@ -251,7 +251,7 @@ void restore_saved_config() {
   memcpy(&global_config, (void*) &quicksave_config, sizeof(struct radio_config));
   s6c.rf24->setFrequency(global_config.frequency);
   s6c.rf24->setDatarate(global_config.datarate);
-  s6c.rf24->setMessageLength(global_config.message_length);
+  s6c.rf24->setMessageLength(global_config.message_length + NPAR);
   setTDMAlengths();
   quicksave_acktime = 0;
 }
@@ -361,7 +361,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
         if (vi >= 0 && vi <= 234) {
           vi++;
           SerialUSB.println("Set message length");
-          s6c.rf24->setMessageLength(vi);
+          s6c.rf24->setMessageLength(vi + NPAR);
           global_config.message_length = vi;
           setTDMAlengths();
         }
@@ -550,7 +550,7 @@ void setup() {
 
   SerialUSB.println("Configuring RF...");
   s6c.configureRF();
-  s6c.rf24->setMessageLength(global_config.message_length);
+  s6c.rf24->setMessageLength(global_config.message_length + NPAR);
   setTDMAlengths();
 
   uint8_t config_saved = EEPROM.read(LOC_CONFIG);
