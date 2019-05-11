@@ -90,7 +90,7 @@ struct radio_config {
   unsigned int ack_interval = 60000;
   bool tdma_enabled = 1;
   uint8_t epoch_slots = 16;
-  uint16_t allocated_slots = 0b0101010101010101; // which slot(s) this device is permitted to transmit in
+  uint16_t allocated_slots = ~0b0101010101010101; // which slot(s) this device is permitted to transmit in
 };
 
 struct radio_config global_config;      // global config
@@ -162,6 +162,9 @@ unsigned long slot_length_us; // size of each slot, in microseconds - this equal
 unsigned long epoch_length_us; // length of a TDMA epoch, in microseconds
 bool TDMA_sync = 0; // whether or not the device is properly TDMA synced
 unsigned long last_sync = 0; // time of last TDMA sync/desync event
+
+unsigned long txed = 0;
+unsigned long rxed = 0;
 
 unsigned long last_offset = 0;
 
@@ -646,6 +649,9 @@ uint32_t last = 0;
 
 void loop() {
   updateTDMA();
+  SerialUSB.print(txed);
+  SerialUSB.print(' ');
+  SerialUSB.println(rxed);
 
   if (quicksave_acktime > 0 && millis() > quicksave_acktime) {
     restore_saved_config();
@@ -683,6 +689,7 @@ void loop() {
         //SerialUSB.println("Sending");
         //uint32_t t0 = micros();
         s6c.encode_and_transmit(current_transmission, global_config.message_length);
+        txed++;
         //SerialUSB.println(((float)(micros()-t0))/1000.);
         force_transmit = false;
         s6c.LEDOff();
@@ -756,6 +763,7 @@ void loop() {
       min_send_frame(&min_ctx_header, 3, (uint8_t*)(receive_buffer), global_config.message_length);
 
       SerialUSB.println("Got message!");
+      rxed++;
       SerialUSB.println(receive_buffer[0], DEC);
       s6c.LEDOff();
       /*Serial1.write(RADIO_START_SEQUENCE,4);
