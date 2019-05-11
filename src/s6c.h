@@ -29,7 +29,7 @@
 #define LED_PIN 27
 
 #define PRINT_TIMING
-#define PRINT_ENCODED_DATA
+//#define PRINT_ENCODED_DATA
 #define PRINT_RSSI
 
 #define PIN_ARM1 18 //SER01 - PA05 - 18

@@ -33,29 +33,29 @@ char current_transmission[BUFFER_SIZE];
 // NEED MORE ELEGANT SERCOM HANDLER
 
 #if (HWREV == 102)
-#define HEADER_TX 8
-#define HEADER_RX 17
+  #define HEADER_TX 8
+  #define HEADER_RX 17
 
-Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_0, UART_TX_PAD_2);
+  Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_0, UART_TX_PAD_2);
 
-void SERCOM0_Handler()
-{
-  SerialHeader.IrqHandler();
-}
+  void SERCOM0_Handler()
+  {
+    SerialHeader.IrqHandler();
+  }
 
 #endif
 
 
 #if (HWREV == 100)
-#define HEADER_TX_PIN 10
-#define HEADER_RX_PIN 11
+  #define HEADER_TX_PIN 10
+  #define HEADER_RX_PIN 11
 
-Uart SerialHeader(&sercom1, HEADER_RX_PIN, HEADER_TX_PIN, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+  Uart SerialHeader(&sercom1, HEADER_RX_PIN, HEADER_TX_PIN, SERCOM_RX_PAD_2, UART_TX_PAD_0);
 
-void SERCOM1_Handler()
-{
-  SerialHeader.IrqHandler();
-}
+  void SERCOM1_Handler()
+  {
+    SerialHeader.IrqHandler();
+  }
 #endif
 
 S6C s6c;
@@ -83,8 +83,8 @@ const bool ENABLE_EEPROM_CONFIG = 0; // if 0, disables all behavior relating to 
 struct radio_config {
   int mode = MODE_RECEIVING | MODE_TRANSMITTING;
   float frequency = 433.5; // MHz "Lesson: never comment your code" -- Joank
-  bool transmit_continuous = 1; // if 1, resend last msg even if nothing new recvd
-  enum radio_config_datarate datarate = DATARATE_5_KBPS;//DATARATE_500_BPS;
+  bool transmit_continuous = 0; // if 1, resend last msg even if nothing new recvd
+  enum radio_config_datarate datarate = DATARATE_500_BPS;
   unsigned int interval = 2500;
   unsigned int message_length = 20;
   unsigned int ack_interval = 60000;
@@ -207,14 +207,14 @@ void updateTDMA(){
   // slot rollover
   if(new_slot_time > slot_length_us){
     new_slot_time -= slot_length_us;
-    slot_start_us = now - new_slot_time;
+    slot_start_us += slot_length_us;
     epoch_slot++;
   }
 
   // epoch rollover
   if(new_epoch_time > epoch_length_us){
     new_epoch_time -= epoch_length_us;
-    epoch_start_us = now - new_epoch_time;
+    epoch_start_us += epoch_length_us;
     epoch_slot = 0;
   }
 
@@ -636,6 +636,14 @@ void loop() {
         last_transmission_time = millis() - 2*global_config.interval;
         return;
       }
+
+      unsigned long sentmicros = (unsigned long)receive_buffer[1] | (unsigned long)receive_buffer[2] << 8 | (unsigned long)receive_buffer[3] << 16 | (unsigned long)receive_buffer[4] << 24;
+      SerialUSB.print(micros());
+      SerialUSB.print(' ');
+      SerialUSB.print(sentmicros);
+      SerialUSB.print(' ');
+      SerialUSB.println(micros() - sentmicros);
+
       if (receive_buffer[0] & 128) {
         receive_buffer[0] &= ~128U;
         SerialUSB.println("it's a config message!");
