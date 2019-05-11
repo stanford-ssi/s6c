@@ -90,7 +90,7 @@ struct radio_config {
   unsigned int ack_interval = 60000;
   bool tdma_enabled = 1;
   uint8_t epoch_slots = 4;
-  uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
+  uint16_t allocated_slots = 0b1111; // which slot(s) this device is permitted to transmit in
 };
 
 struct radio_config global_config;      // global config
