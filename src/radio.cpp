@@ -90,7 +90,7 @@ struct radio_config {
   unsigned int ack_interval = 60000;
   bool tdma_enabled = 1;
   uint8_t epoch_slots = 4;
-  uint16_t allocated_slots = 0b0001; // which slot(s) this device is permitted to transmit in
+  uint16_t allocated_slots = 0b0010; // which slot(s) this device is permitted to transmit in
 };
 
 struct radio_config global_config;      // global config
@@ -141,6 +141,9 @@ const unsigned long us_per_byte[] = {16000, 1600, 800, 160, 80, 32, 16, 8};
 const unsigned long TDMA_SLOT_MARGIN_US = 20000; // how much larger is a slot than the message within it
 const unsigned long TDMA_MSG_MARGIN_US = 15000; // how much longer is a message than the length in bytes suggests it should be
 const unsigned long TDMA_AUTOSYNC_TIME_US = 5000000; // how long the device waits before asserting itself as TDMA master
+const unsigned int TDMA_CORRECTION_PRECISION = 4; // How precise TDMA corrections are
+const unsigned long MAX_TDMA_CORRECTION_US = TDMA_CORRECTION_PRECISION * 127; // How large of a TDMA timing correction can be transmitted = 127 * precision
+
 
 void setTDMAlengths();
 void updateTDMA();
@@ -159,6 +162,8 @@ unsigned long slot_length_us; // size of each slot, in microseconds - this equal
 unsigned long epoch_length_us; // length of a TDMA epoch, in microseconds
 bool TDMA_sync = 0; // whether or not the device is properly TDMA synced
 unsigned long last_sync = 0; // time of last TDMA sync/desync event
+
+unsigned long last_offset = 0;
 
 void setTDMAlengths(){
   msg_length_bytes = PREAMBLE_LENGTH + (NUM_SYNC_WORDS + 1) + global_config.message_length + NPAR; // NUM_SYNC_WORDS appears to be one less than reality; confirm before changing NUM_SYNC_WORDS
@@ -238,31 +243,31 @@ void updateTDMA(){
 
 // assess whether or not a message can currently be sent per TDMA rules
 unsigned long validTDMAsend(){
-  SerialUSB.print(TDMA_sync);
-  SerialUSB.print(' ');
-  SerialUSB.print(global_config.tdma_enabled);
-  SerialUSB.print(' ');
-  SerialUSB.print(micros());
-  SerialUSB.print(' ');
-  SerialUSB.print(epoch_slot);
-  SerialUSB.print(' ');
-  SerialUSB.print(epoch_time_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(slot_time_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(msg_length_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(slot_length_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(epoch_length_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(slot_length_us - slot_time_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(msg_length_us);
-  SerialUSB.print(' ');
-  SerialUSB.print(msg_length_bytes);
-  SerialUSB.print(' ');
-  SerialUSB.println(slot_length_us - slot_time_us > msg_length_us);
+  // SerialUSB.print(TDMA_sync);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(global_config.tdma_enabled);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(micros());
+  // SerialUSB.print(' ');
+  // SerialUSB.print(epoch_slot);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(epoch_time_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(slot_time_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(msg_length_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(slot_length_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(epoch_length_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(slot_length_us - slot_time_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(msg_length_us);
+  // SerialUSB.print(' ');
+  // SerialUSB.print(msg_length_bytes);
+  // SerialUSB.print(' ');
+  // SerialUSB.println(slot_length_us - slot_time_us > msg_length_us);
 
   if(!global_config.tdma_enabled) return -1; // note: this returns a nonzero value and therefore allows a message to be sent
 
@@ -355,7 +360,7 @@ void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_p
       case MESSAGE_SEND:
         if (i + 1 + min_payload[i+1] <= len_payload) {
           memset(transmit_buffer, 0, global_config.message_length);
-          transmit_buffer[0] = ((num_messages++) % 128) | 128;
+          //transmit_buffer[0] = ((num_messages++) % 128) | 128;
           memcpy(transmit_buffer + 1, min_payload + i + 2, min_payload[i+1]);
           force_transmit = true;
         }
@@ -649,26 +654,39 @@ void loop() {
     unsigned int interval = millis() - last_transmission_time;
     if (force_transmit || (global_config.transmit_continuous && (global_config.tdma_enabled || interval >= global_config.interval))) {
       if (validTDMAsend()) {
-        unsigned long tx_start = micros();
-        SerialUSB.println(tx_start);
+        //unsigned long tx_start = micros();
+        //SerialUSB.println(tx_start);
         last_transmission_time = millis();
 
-        if(global_config.transmit_continuous){
-          transmit_buffer[0] = ((num_messages++) % 128);
-          *(unsigned long*)(transmit_buffer+1) = micros();
+        if(!(transmit_buffer[0] & 128)){ // proceed if not sending a config message
+          unsigned long new_slot_time = dif_micros(slot_start_us, micros());
+          SerialUSB.println(new_slot_time);
+          // slot time, precise to 2^TDMA_CORRECTION_PRECISION us
+          uint8_t tdma_correction = (uint8_t)(new_slot_time >> TDMA_CORRECTION_PRECISION); // efficient division
+          SerialUSB.println(tdma_correction);
+          if(new_slot_time > MAX_TDMA_CORRECTION_US) tdma_correction = 0b01111111; // this is bad, meaning a message was sent too late into a slot; this minimizes timing error
+          if(epoch_slot != 0) tdma_correction = 0;
+          SerialUSB.println(tdma_correction);
+          transmit_buffer[0] = tdma_correction; // load TDMA correction data for transmission if in slot 0 and not sending a config message
+
         }
+
+        // if(global_config.transmit_continuous){
+        //   transmit_buffer[0] = ((num_messages++) % 128);
+        //   *(unsigned long*)(transmit_buffer+1) = micros();
+        // }
 
         noInterrupts();
         memcpy(current_transmission, transmit_buffer, global_config.message_length);
         interrupts();
         s6c.LEDOn();
-        SerialUSB.println("Sending");
-        uint32_t t0 = micros();
+        //SerialUSB.println("Sending");
+        //uint32_t t0 = micros();
         s6c.encode_and_transmit(current_transmission, global_config.message_length);
-        SerialUSB.println(((float)(micros()-t0))/1000.);
+        //SerialUSB.println(((float)(micros()-t0))/1000.);
         force_transmit = false;
         s6c.LEDOff();
-        unsigned long tx_end = micros();
+        //unsigned long tx_end = micros();
         #ifdef PRINT_TIMING
           SerialUSB.println(tx_end);
           SerialUSB.println(tx_end - tx_start);
@@ -692,18 +710,35 @@ void loop() {
         return;
       }
 
-      unsigned long sentmicros = (unsigned long)receive_buffer[1] | (unsigned long)receive_buffer[2] << 8 | (unsigned long)receive_buffer[3] << 16 | (unsigned long)receive_buffer[4] << 24;
-      SerialUSB.print(micros());
-      SerialUSB.print(' ');
-      SerialUSB.print(sentmicros);
-      SerialUSB.print(' ');
-      SerialUSB.println(micros() - sentmicros);
+      // unsigned long sentmicros = (unsigned long)receive_buffer[1] | (unsigned long)receive_buffer[2] << 8 | (unsigned long)receive_buffer[3] << 16 | (unsigned long)receive_buffer[4] << 24;
+      // unsigned long now = micros();
+      // unsigned long offset = now - sentmicros;
+      //
+      // SerialUSB.print(now);
+      // SerialUSB.print(' ');
+      // SerialUSB.print(sentmicros);
+      // SerialUSB.print(' ');
+      // SerialUSB.print(offset);
+      // SerialUSB.print(' ');
+      // SerialUSB.println((long)(offset - last_offset));
+      //
+      // last_offset = offset;
 
-      if (receive_buffer[0] & 128) {
+      if (receive_buffer[0] & 128) { // Message is config message
         receive_buffer[0] &= ~128U;
         SerialUSB.println("it's a config message!");
         min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], global_config.message_length - 1), 2);
+      }else{ // Message may contain TDMA corrections
+        unsigned long tx_slot_time = (long)(receive_buffer[0]) << TDMA_CORRECTION_PRECISION;
+
+        //if(!TDMA_sync){
+        if(tx_slot_time != 0){
+          resyncTDMA(tx_slot_time + msg_length_us);
+        }
+        //}
       }
+
+
       receive_buffer[0] = s6c.getRSSI();
       receive_buffer[0] &= ~1U;
       receive_buffer[0] |= (rx == 3);
@@ -721,6 +756,7 @@ void loop() {
       min_send_frame(&min_ctx_header, 3, (uint8_t*)(receive_buffer), global_config.message_length);
 
       SerialUSB.println("Got message!");
+      SerialUSB.println(receive_buffer[0], DEC);
       s6c.LEDOff();
       /*Serial1.write(RADIO_START_SEQUENCE,4);
         Serial1.write((uint8_t*)RB_CMD, k);
