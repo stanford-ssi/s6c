@@ -1,5 +1,4 @@
 import time
-import os
 import numpy as np
 from min import ThreadsafeTransportMINSerialHandler
 import sys
@@ -7,7 +6,7 @@ import re
 from mc_interface import on_downlinked_data, listen_for_data_to_uplink
 from s6c_console import run_console
 
-console_only = os.name == 'nt'
+console_only = False
 
 with open('src/RadioInterface.h') as f:
     t = f.read()
