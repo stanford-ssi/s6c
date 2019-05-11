@@ -141,8 +141,9 @@ const unsigned long us_per_byte[] = {16000, 1600, 800, 160, 80, 32, 16, 8};
 const unsigned long TDMA_SLOT_MARGIN_US = 20000; // how much larger is a slot than the message within it
 const unsigned long TDMA_MSG_MARGIN_US = 15000; // how much longer is a message than the length in bytes suggests it should be
 const unsigned long TDMA_AUTOSYNC_TIME_US = 5000000; // how long the device waits before asserting itself as TDMA master
+const unsigned long TDMA_SYNC_REFRESH_TIME = 60000000; // how long the device waits before trying to update its sync from coarse corrections
 const unsigned int TDMA_CORRECTION_PRECISION = 4; // How precise TDMA corrections are
-const unsigned long MAX_TDMA_CORRECTION_US = TDMA_CORRECTION_PRECISION * 127; // How large of a TDMA timing correction can be transmitted = 127 * precision
+const unsigned long MAX_TDMA_CORRECTION_US = (0b1 << TDMA_CORRECTION_PRECISION) * 63; // How large of a 6 bit TDMA timing correction can be transmitted = 63 * precision
 
 
 void setTDMAlengths();
@@ -153,7 +154,7 @@ unsigned long dif_micros(unsigned long start, unsigned long end);
 
 unsigned long epoch_start_us = 0; // Time this TDMA epoch started
 unsigned long epoch_time_us = 0; // Time elapsed so far during this TDMA epoch
-uint16_t epoch_slot = 0; // Which slot in the TDMA epoch is currently active
+uint8_t epoch_slot = 0; // Which slot in the TDMA epoch is currently active
 unsigned long slot_start_us = 0; // Time this slot started
 unsigned long slot_time_us = 0; // Time elapsed so far during this TDMA slot
 unsigned int msg_length_bytes; // size of each transmission, in bytes
@@ -197,7 +198,7 @@ void resyncTDMA(unsigned long new_epoch_time){
   unsigned long new_epoch_start = now - mutable_new_epoch_time;
 
   // figure out which slot it currently is
-  uint16_t new_slot = mutable_new_epoch_time/slot_length_us;
+  uint8_t new_slot = mutable_new_epoch_time/slot_length_us;
   unsigned long new_slot_start = new_epoch_start + (slot_length_us * new_slot);
   unsigned long new_slot_time = dif_micros(new_slot_start, now);
 
@@ -667,11 +668,14 @@ void loop() {
         if(!(transmit_buffer[0] & 128)){ // proceed if not sending a config message
           unsigned long new_slot_time = dif_micros(slot_start_us, micros());
           SerialUSB.println(new_slot_time);
+
           // slot time, precise to 2^TDMA_CORRECTION_PRECISION us
           uint8_t tdma_correction = (uint8_t)(new_slot_time >> TDMA_CORRECTION_PRECISION); // efficient division
-          SerialUSB.println(tdma_correction);
+          tdma_correction = (tdma_correction & 0b00111111) | 0b01000000; // formats as 0b01XXXXXX, where X's are correction bits
+
           if(new_slot_time > MAX_TDMA_CORRECTION_US) tdma_correction = 0b01111111; // this is bad, meaning a message was sent too late into a slot; this minimizes timing error
-          if(epoch_slot != 0) tdma_correction = 0;
+          if(epoch_slot != 0) tdma_correction = epoch_slot & 0b00111111; // if not slot 0, send what slot you are, to allow coarse sync (fine sync only on slot 0)
+
           SerialUSB.println(tdma_correction);
           transmit_buffer[0] = tdma_correction; // load TDMA correction data for transmission if in slot 0 and not sending a config message
 
@@ -735,14 +739,16 @@ void loop() {
         receive_buffer[0] &= ~128U;
         SerialUSB.println("it's a config message!");
         min_application_handler(0x02, (uint8_t*)(receive_buffer + 1), min(receive_buffer[0], global_config.message_length - 1), 2);
-      }else{ // Message may contain TDMA corrections
-        unsigned long tx_slot_time = (long)(receive_buffer[0]) << TDMA_CORRECTION_PRECISION;
+      }else if(receive_buffer[0] & 64){ // Message contains fine TDMA corrections specifying a time in us - sync to always
 
-        //if(!TDMA_sync){
-        if(tx_slot_time != 0){
-          resyncTDMA(tx_slot_time + msg_length_us);
+        unsigned long tx_slot_time = (long)(receive_buffer[0] & 0b00111111) << TDMA_CORRECTION_PRECISION;
+        resyncTDMA(tx_slot_time + msg_length_us);
+
+      }else{ // message contiains coarse TDMA corrections with just a slot - use only if unsynced or haven't synced in a while
+        if(!TDMA_sync || dif_micros(last_sync, micros()) > TDMA_SYNC_REFRESH_TIME){
+          uint8_t tx_slot = receive_buffer[0];
+          resyncTDMA(slot_length_us*tx_slot + msg_length_us);
         }
-        //}
       }
 
 
