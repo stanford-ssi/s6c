@@ -8,6 +8,7 @@ import sys
 from min import MINFrame
 from interfaces.console_interface import ConsoleInterface
 from interfaces.fifo_interface import FIFOInterface
+from interfaces.socket_interface import SocketInterface
 
 
 def create_mc_interface(start_downlink, trigger_uplink, mechanism):
@@ -23,6 +24,8 @@ def create_mc_interface(start_downlink, trigger_uplink, mechanism):
         ConsoleInterface(start_downlink, trigger_uplink)
     elif mechanism == 'fifo':
         FIFOInterface(start_downlink, trigger_uplink)
+    elif mechanism == 'socket':
+        SocketInterface(start_downlink, trigger_uplink)
     else:
         raise Exception("Mechanism must be console, fifo, or socket")
 
