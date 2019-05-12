@@ -1,13 +1,9 @@
 import time
-import os
 import numpy as np
 from min import ThreadsafeTransportMINSerialHandler
 import sys
 import re
-from mc_interface import on_downlinked_data, listen_for_data_to_uplink
-from s6c_console import run_console
-
-console_only = os.name == 'nt'
+from interfaces.mc_interface import MCInterface
 
 with open('src/RadioInterface.h') as f:
     t = f.read()
@@ -20,7 +16,7 @@ mode = sys.argv[2] if len(sys.argv) > 2 else "rx"
 handler = ThreadsafeTransportMINSerialHandler(port=port)
 
 # Listens to output from the s6c, logging it all to data.txt
-def listen_to_s6c():
+def listen_to_s6c(on_downlinked_data):
     outfile = open("data.txt", "a")
 
     while True:
@@ -30,10 +26,7 @@ def listen_to_s6c():
                 outfile.write(str(frame.payload) + '\n')
                 outfile.flush()
 
-                if console_only:
-                    print(str(frame.payload))
-                else:
-                    on_downlinked_data(frame)
+                on_downlinked_data(frame)
 
         time.sleep(0.01)
 
@@ -94,9 +87,4 @@ if mode == "tx":
     send_command_to_s6c('set-mode 3')
     send_command_to_s6c('set-continuous 1')
 
-if console_only:
-    print("Running console - type commands here:")
-    run_console(listen_to_s6c, send_command_to_s6c)
-else:
-    listen_for_data_to_uplink(send_command_to_s6c)
-    listen_to_s6c()
+MCInterface.create(listen_to_s6c, send_command_to_s6c, 'console')

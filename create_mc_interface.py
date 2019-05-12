@@ -3,20 +3,35 @@
 
 import time
 import random
-from mc_interface import on_downlinked_data, listen_for_data_to_uplink
 from min import MINFrame
-
-# Note that in a previous version, we parsed as follows. This may be useful for understanding the format.
-#   out = struct.unpack("iii", f.payload[1:13])
-#   data = {"latitude": out[0]/1000000, "longitude": out[1]/1000000, "altitude": out[2], "id":str(uuid.uuid4()), "mission": 53, "timestamp": int(time.time()*1000)}
+from interfaces.console_interface import ConsoleInterface
 
 
-def create_mock_data():
+def create_mc_interface(start_downlink, trigger_uplink, mechanism):
+    """
+    Creates an interface for interfacting with MC with a given mechanism
+
+    :param start_downlink:
+    :param trigger_uplink:
+    :param mechanism:
+    :return:
+    """
+    if mechanism == 'console':
+        ConsoleInterface(start_downlink, trigger_uplink)
+    else:
+        raise Exception("Mechanism must be console, fifo, or socket")
+
+
+def create_mock_data(on_downlinked_data):
     """
     Starts generating fake data and feeds it to the MC interface
 
     :return:
     """
+
+    # Note that in a previous version, we parsed as follows. This may be useful for understanding the format.
+    #   out = struct.unpack("iii", f.payload[1:13])
+    #   data = {"latitude": out[0]/1000000, "longitude": out[1]/1000000, "altitude": out[2], "id":str(uuid.uuid4()), "mission": 53, "timestamp": int(time.time()*1000)}
 
     byte_order = 'little'  # Hopefully this is right :skeleton:
     min_id = 0  # message type identifier used by the MIN protocol. We don't use it
@@ -41,6 +56,14 @@ def create_mock_data():
         time.sleep(1)
 
 
+def mock_uplink(data):
+    """
+    Fake function to use for testing uplink
+
+    :param data:
+    :return:
+    """
+    print('[Mock S6C] Uplinking', data)
+
 if __name__ == "__main__":
-    listen_for_data_to_uplink(lambda x: print('[Mock S6C] Uplinking', x))
-    create_mock_data()
+    create_mc_interface(create_mock_data, mock_uplink, 'console')
