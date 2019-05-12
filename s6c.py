@@ -3,7 +3,7 @@ import numpy as np
 from min import ThreadsafeTransportMINSerialHandler
 import sys
 import re
-from interfaces.mc_interface import MCInterface
+from create_mc_interface import create_mc_interface
 
 with open('src/RadioInterface.h') as f:
     t = f.read()
@@ -13,6 +13,7 @@ cmds = dict(cmds)
 
 port = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
 mode = sys.argv[2] if len(sys.argv) > 2 else "rx"
+mechanism = sys.argv[3] if len(sys.argv) > 3 else "console"
 handler = ThreadsafeTransportMINSerialHandler(port=port)
 
 # Listens to output from the s6c, logging it all to data.txt
@@ -87,4 +88,4 @@ if mode == "tx":
     send_command_to_s6c('set-mode 3')
     send_command_to_s6c('set-continuous 1')
 
-MCInterface.create(listen_to_s6c, send_command_to_s6c, 'console')
+create_mc_interface(listen_to_s6c, send_command_to_s6c, mechanism)

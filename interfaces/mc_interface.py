@@ -11,6 +11,8 @@ class MCInterface:
 
         self.listen_for_data_to_uplink()
 
+    def log(self, message):
+        print('[MC Interface] %s' % message)
 
     def on_downlinked_data(self, frame):
         raise Exception("Abstract method on_downlinked_data not over-ridden")

@@ -3,8 +3,11 @@
 
 import time
 import random
+import sys
+
 from min import MINFrame
 from interfaces.console_interface import ConsoleInterface
+from interfaces.fifo_interface import FIFOInterface
 
 
 def create_mc_interface(start_downlink, trigger_uplink, mechanism):
@@ -18,6 +21,8 @@ def create_mc_interface(start_downlink, trigger_uplink, mechanism):
     """
     if mechanism == 'console':
         ConsoleInterface(start_downlink, trigger_uplink)
+    elif mechanism == 'fifo':
+        FIFOInterface(start_downlink, trigger_uplink)
     else:
         raise Exception("Mechanism must be console, fifo, or socket")
 
@@ -66,4 +71,4 @@ def mock_uplink(data):
     print('[Mock S6C] Uplinking', data)
 
 if __name__ == "__main__":
-    create_mc_interface(create_mock_data, mock_uplink, 'console')
+    create_mc_interface(create_mock_data, mock_uplink, sys.argv[1] if len(sys.argv) > 1 else 'console')
