@@ -49,6 +49,10 @@ def send_command_to_s6c(command):
     local = spec is None or spec == '*'
     msg = []
 
+    if command[0] == 'ping':
+        print('Ping -- staying alive')
+        return
+
     if command[0] not in cmds:
         print('Unknown command', command[0])
         return
