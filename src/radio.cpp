@@ -116,7 +116,7 @@ void read_eeprom_config(uint8_t *out) {
 }
 
 void maybe_save_config() {
-  if(ENABLE_EEPROM_CONFIG){ // only proceed if EEPROM disabled
+  if(ENABLE_EEPROM_CONFIG){ // only proceed if EEPROM enabled
     uint8_t *new_config = (uint8_t *) &global_config;
     int should_save = memcmp(&last_eeprom_config, new_config, sizeof(struct radio_config));
     if (should_save != 0) { // "The memcmp() function returns zero if the two strings are identical"
@@ -138,7 +138,7 @@ void maybe_save_config() {
 
 const unsigned long bits_per_second[] = {500, 5000, 10000, 50000, 100000, 250000, 500000, 1000000};
 const unsigned long us_per_byte[] = {16000, 1600, 800, 160, 80, 32, 16, 8};
-const unsigned long TDMA_SLOT_MARGIN_US = 20000; // how much larger is a slot than the message within it
+const unsigned long TDMA_SLOT_MARGIN_US = 25000; // how much larger is a slot than the message within it
 const unsigned long TDMA_MSG_MARGIN_US = 15000; // how much longer is a message than the length in bytes suggests it should be
 const unsigned long TDMA_AUTOSYNC_TIME_US = 5000000; // how long the device waits before asserting itself as TDMA master
 const unsigned long TDMA_SYNC_REFRESH_TIME = 60000000; // how long the device waits before trying to update its sync from coarse corrections
@@ -661,8 +661,10 @@ void loop() {
     unsigned int interval = millis() - last_transmission_time;
     if (force_transmit || (global_config.transmit_continuous && (global_config.tdma_enabled || interval >= global_config.interval))) {
       if (validTDMAsend()) {
-        //unsigned long tx_start = micros();
-        //SerialUSB.println(tx_start);
+        
+        noInterrupts(); // disable interrupts to try and make transmit function deterministic length
+        s6c.LEDOn();
+
         last_transmission_time = millis();
 
         if(!(transmit_buffer[0] & 128)){ // proceed if not sending a config message
@@ -681,22 +683,16 @@ void loop() {
 
         }
 
-        // if(global_config.transmit_continuous){
-        //   transmit_buffer[0] = ((num_messages++) % 128);
-        //   *(unsigned long*)(transmit_buffer+1) = micros();
-        // }
-
-        noInterrupts();
+        //noInterrupts(); // if not noInterrupts-ed above, disable interupts around memcpy
         memcpy(current_transmission, transmit_buffer, global_config.message_length);
-        interrupts();
-        s6c.LEDOn();
-        //SerialUSB.println("Sending");
-        //uint32_t t0 = micros();
+        //interrupts();
+
         s6c.encode_and_transmit(current_transmission, global_config.message_length);
         txed++;
-        //SerialUSB.println(((float)(micros()-t0))/1000.);
         force_transmit = false;
         s6c.LEDOff();
+        interrupts();
+
         //unsigned long tx_end = micros();
         #ifdef PRINT_TIMING
           SerialUSB.println(tx_end);
