@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/home/ssi/.local/lib/python3.6/site-packages/serial/serialposix.py", line 265, in open
+    self.fd = os.open(self.portstr, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+FileNotFoundError: [Errno 2] No such file or directory: '2'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ssi/s6c/min.py", line 618, in __init__
+    self._serial = Serial(port=port, timeout=0.1, write_timeout=1.0)
+  File "/home/ssi/.local/lib/python3.6/site-packages/serial/serialutil.py", line 240, in __init__
+    self.open()
+  File "/home/ssi/.local/lib/python3.6/site-packages/serial/serialposix.py", line 268, in open
+    raise SerialException(msg.errno, "could not open port {}: {}".format(self._port, msg))
+serial.serialutil.SerialException: [Errno 2] could not open port 2: [Errno 2] No such file or directory: '2'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "s6c.py", line 26, in <module>
+    handler = ThreadsafeTransportMINSerialHandler(port=port)
+  File "/home/ssi/s6c/min.py", line 634, in __init__
+    super().__init__(port=port, loglevel=loglevel)
+  File "/home/ssi/s6c/min.py", line 622, in __init__
+    raise MINConnectionError("Transport MIN cannot open port '{}'".format(port))
+min.MINConnectionError: Transport MIN cannot open port '2'

@@ -1,0 +1,94 @@
+Listening to command.dev.ttyACM0
+(35346927, -117808404, 2069)
+{'id': '5f2198a8-39fb-4e86-be46-6964369e0d80', 'mission': 53, 'timestamp': 1556977444166, 'latitude': 35.346927, 'longitude': -117.808404, 'altitude': 2069}
+[WS] error
+name 'ws' is not defined
+(35346927, -117808413, 2066)
+{'id': '2dfadb04-5874-4a5a-adbb-abaf9ea2d06b', 'mission': 53, 'timestamp': 1556977448167, 'latitude': 35.346927, 'longitude': -117.808413, 'altitude': 2066}
+[WS] error
+name 'ws' is not defined
+(35346927, -117808431, 2066)
+{'id': '0765bc7b-4c43-4c50-a932-bf583d9fbe75', 'mission': 53, 'timestamp': 1556977452165, 'latitude': 35.346927, 'longitude': -117.808431, 'altitude': 2066}
+[WS] error
+name 'ws' is not defined
+(35346929, -117808442, 2064)
+{'id': 'e5cbd29d-d9c8-4247-aa15-fc2b45bc307d', 'mission': 53, 'timestamp': 1556977456165, 'latitude': 35.346929, 'longitude': -117.808442, 'altitude': 2064}
+[WS] error
+name 'ws' is not defined
+(35346928, -117808432, 2061)
+{'id': '07a15018-5c95-4345-8b4f-79ccb7f88185', 'mission': 53, 'timestamp': 1556977460165, 'latitude': 35.346928, 'longitude': -117.808432, 'altitude': 2061}
+[WS] error
+name 'ws' is not defined
+(35346930, -117808431, 2056)
+{'id': 'cc625721-0d30-44f4-b3ce-974357823a1e', 'mission': 53, 'timestamp': 1556977464169, 'latitude': 35.34693, 'longitude': -117.808431, 'altitude': 2056}
+[WS] error
+name 'ws' is not defined
+(35346935, -117808446, 2052)
+{'id': '7680631a-22bd-443d-a724-27a0f24c0480', 'mission': 53, 'timestamp': 1556977472162, 'latitude': 35.346935, 'longitude': -117.808446, 'altitude': 2052}
+[WS] error
+name 'ws' is not defined
+(35346938, -117808467, 2051)
+{'id': 'a97ee618-a05d-4ca4-a783-e8ad40cef5a9', 'mission': 53, 'timestamp': 1556977476163, 'latitude': 35.346938, 'longitude': -117.808467, 'altitude': 2051}
+[WS] error
+name 'ws' is not defined
+Listening to command.dev.ttyACM0
+(35346953, -117808464, 2041)
+{'id': '71c24d31-74f7-41ab-b7db-85330bb78e43', 'mission': 53, 'timestamp': 1556977492162, 'latitude': 35.346953, 'longitude': -117.808464, 'altitude': 2041}
+[WS] error
+name 'ws' is not defined
+(35346958, -117808476, 2039)
+{'id': 'b65f9df3-92fb-4021-995b-c9486fb791a7', 'mission': 53, 'timestamp': 1556977496162, 'latitude': 35.346958, 'longitude': -117.808476, 'altitude': 2039}
+[WS] error
+name 'ws' is not defined
+(35346958, -117808470, 2041)
+{'id': '28e692cc-9f6d-4d10-a445-b7135d48655e', 'mission': 53, 'timestamp': 1556977500163, 'latitude': 35.346958, 'longitude': -117.80847, 'altitude': 2041}
+[WS] error
+name 'ws' is not defined
+(35346955, -117808460, 2042)
+{'id': 'bd6e4769-010d-4d9a-a8e1-5affdb4fac96', 'mission': 53, 'timestamp': 1556977504164, 'latitude': 35.346955, 'longitude': -117.80846, 'altitude': 2042}
+[WS] error
+name 'ws' is not defined
+(35346953, -117808453, 2046)
+{'id': '07561acd-4cd5-4dfa-be2d-ab2018b8c7bb', 'mission': 53, 'timestamp': 1556977508164, 'latitude': 35.346953, 'longitude': -117.808453, 'altitude': 2046}
+[WS] error
+name 'ws' is not defined
+(35346946, -117808444, 2051)
+{'id': 'cd7c9ddc-6566-497f-8b71-fa212298e30e', 'mission': 53, 'timestamp': 1556977512161, 'latitude': 35.346946, 'longitude': -117.808444, 'altitude': 2051}
+[WS] error
+name 'ws' is not defined
+(35346940, -117808438, 2053)
+{'id': 'ad5bfb48-1a8d-4753-b377-81b9512a6c9c', 'mission': 53, 'timestamp': 1556977516164, 'latitude': 35.34694, 'longitude': -117.808438, 'altitude': 2053}
+[WS] error
+name 'ws' is not defined
+(35346931, -117808410, 2055)
+{'id': 'b69ed318-07bf-4897-8edd-ba17771e3194', 'mission': 53, 'timestamp': 1556977520395, 'latitude': 35.346931, 'longitude': -117.80841, 'altitude': 2055}
+[WS] error
+name 'ws' is not defined
+(35346928, -117808400, 2058)
+{'id': '608ebba6-6845-4a68-8227-c0407a7e7008', 'mission': 53, 'timestamp': 1556977524169, 'latitude': 35.346928, 'longitude': -117.8084, 'altitude': 2058}
+[WS] error
+name 'ws' is not defined
+(35346927, -117808399, 2060)
+{'id': 'b496cd96-2eba-417a-9879-506d7629a9bd', 'mission': 53, 'timestamp': 1556977528161, 'latitude': 35.346927, 'longitude': -117.808399, 'altitude': 2060}
+[WS] error
+name 'ws' is not defined
+(35346927, -117808417, 2063)
+{'id': 'e5efbe82-39cf-48f8-b372-7774a2c28832', 'mission': 53, 'timestamp': 1556977532162, 'latitude': 35.346927, 'longitude': -117.808417, 'altitude': 2063}
+[WS] error
+name 'ws' is not defined
+(35346932, -117808424, 2065)
+{'id': '40e002df-46f2-4214-97a3-b5e3d53feb71', 'mission': 53, 'timestamp': 1556977536164, 'latitude': 35.346932, 'longitude': -117.808424, 'altitude': 2065}
+[WS] error
+name 'ws' is not defined
+(35346936, -117808437, 2066)
+{'id': '3c994bf2-0e64-4907-ad2b-e35e667519eb', 'mission': 53, 'timestamp': 1556977540162, 'latitude': 35.346936, 'longitude': -117.808437, 'altitude': 2066}
+[WS] error
+name 'ws' is not defined
+(35346938, -117808450, 2063)
+{'id': '7ecc10e9-3429-4ccf-9223-7bd5ef4b0691', 'mission': 53, 'timestamp': 1556977544165, 'latitude': 35.346938, 'longitude': -117.80845, 'altitude': 2063}
+[WS] error
+name 'ws' is not defined
+(35346934, -117808447, 2060)
+{'id': 'c16560fd-975a-4ec6-a85e-52a4e62484b6', 'mission': 53, 'timestamp': 1556977548164, 'latitude': 35.346934, 'longitude': -117.808447, 'altitude': 2060}
+[WS] error
+name 'ws' is not defined

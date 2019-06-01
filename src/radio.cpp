@@ -563,14 +563,14 @@ uint8_t RB_CMD[32] = {0};
 uint32_t last = 0;
 
 void loop() {
-  updateTDMA();
+//updateTDMA();
 
   if (quicksave_acktime > 0 && millis() > quicksave_acktime) {
     restore_saved_config();
   }
   if (global_config.mode & MODE_TRANSMITTING) {
     if ((global_config.transmit_continuous && (millis() - last_transmission_time >= global_config.interval)) || force_transmit) {
-      if (validTDMAsend()) {
+      if (true || validTDMAsend()) {
         last_transmission_time = millis();
         noInterrupts();
         memcpy(current_transmission, transmit_buffer, global_config.message_length);
