@@ -61,8 +61,9 @@ def listen():
             for f in frames:
                 outfile.write(str(f.payload) + '\n')
                 outfile.flush()
+                print(repr(f.payload))
                 out = struct.unpack("iii", f.payload[1:13])
-                print(out)
+                #print(out)
                 data = {"id":str(uuid.uuid4()), "mission": 53, "timestamp": int(time.time()*1000), "latitude": out[0]/1000000, "longitude": out[1]/1000000, "altitude": out[2]}
                 print(data)
 
