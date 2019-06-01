@@ -31,12 +31,12 @@
  *      - 7: 1000 kbps = 125 kB/s
  */
 
-#define HEADER_TX 10
-#define HEADER_RX 11
+#define HEADER_TX 8
+#define HEADER_RX 17
 
-Uart SerialHeader(&sercom1, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_2, UART_TX_PAD_0);
+Uart SerialHeader(&sercom0, HEADER_RX, HEADER_TX, SERCOM_RX_PAD_0, UART_TX_PAD_2);
 
-void SERCOM1_Handler()
+void SERCOM0_Handler()
 {
   SerialHeader.IrqHandler();
 }
@@ -280,8 +280,8 @@ void setup() {
 	SerialUSB.println("hullo s6c");
 
 	SerialHeader.begin(9600);
-	pinPeripheral(HEADER_RX, PIO_SERCOM);
-	pinPeripheral(HEADER_TX, PIO_SERCOM);
+	pinPeripheral(HEADER_RX, PIO_SERCOM_ALT);
+	pinPeripheral(HEADER_TX, PIO_SERCOM_ALT);
 
 	s6c.configureRF();
 	s6c.rf24->setMessageLength(CONFIG.message_length + NPAR);
